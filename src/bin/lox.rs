@@ -12,20 +12,20 @@ use crafting_interpreters::prelude::*;
 
 #[derive(clap::Parser)] // requires `derive` feature
 struct Lox {
-    path: Option<PathBuf>,
+    file: Option<PathBuf>,
 }
 
 impl Lox {
     fn run(self) -> Result<()> {
-        if let Some(path) = self.path {
-            Lox::run_file(path)
+        if let Some(file) = self.file {
+            Lox::run_file(file)
         } else {
             Lox::run_prompt()
         }
     }
 
-    fn run_file(path: PathBuf) -> Result<()> {
-        let code = std::fs::read_to_string(&path)?;
+    fn run_file(file: PathBuf) -> Result<()> {
+        let code = std::fs::read_to_string(&file)?;
 
         Lox::run_code(code)
     }
