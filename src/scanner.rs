@@ -119,6 +119,14 @@ impl Scanner {
                 }
             }
 
+            ' ' => { } /* do nothing */
+
+            '\r' => { } /* do nothing */
+
+            '\t' => { } /* do nothing */
+
+            '\n' => self.newline()
+
             _ => {
                 self.err = Some(Error {
                     what: format!("scanner can't handle {}", c),
@@ -154,6 +162,11 @@ impl Scanner {
         } else {
             false
         }
+    }
+
+    fn newline(&mut self) {
+        self.col = -1;
+        self.line += 1;
     }
 
     fn add_token(&mut self, token_type: TokenType) {
