@@ -75,10 +75,7 @@ impl Scanner {
 
             /* Potential double character tokens */
             '!' => {
-                if let Some(next) = self.peek()
-                    && next == '='
-                {
-                    self.advance();
+                if self.maybe_match('=') {
                     self.add_token(TokenType::BangEqual)
                 } else {
                     self.add_token(TokenType::Bang)
@@ -86,10 +83,7 @@ impl Scanner {
             }
 
             '=' => {
-                if let Some(next) = self.peek()
-                    && next == '='
-                {
-                    self.advance();
+                if self.maybe_match('=') {
                     self.add_token(TokenType::EqualEqual)
                 } else {
                     self.add_token(TokenType::Equal)
@@ -97,10 +91,7 @@ impl Scanner {
             }
 
             '<' => {
-                if let Some(next) = self.peek()
-                    && next == '='
-                {
-                    self.advance();
+                if self.maybe_match('=') {
                     self.add_token(TokenType::LessEqual)
                 } else {
                     self.add_token(TokenType::LessEqual)
@@ -108,13 +99,23 @@ impl Scanner {
             }
 
             '>' => {
-                if let Some(next) = self.peek()
-                    && next == '='
-                {
-                    self.advance();
+                if self.maybe_match('=') {
                     self.add_token(TokenType::GreaterEqual)
                 } else {
                     self.add_token(TokenType::GreaterEqual)
+                }
+            }
+
+            '/' => {
+                if self.maybe_match('/') {
+                    while let Some(ch) = self.peek()
+                        && ch != '\n'
+                        && !self.is_at_end()
+                    {
+                        self.advance();
+                    }
+                } else {
+                    self.add_token(TokenType::Slash);
                 }
             }
 
@@ -140,6 +141,18 @@ impl Scanner {
             None
         } else {
             Some(char::from(self.source[self.current + 1]))
+        }
+    }
+
+    fn maybe_match(&mut self, ch: char) -> bool {
+        if let Some(next) = self.peek()
+            && next == ch
+        {
+            self.advance();
+
+            true
+        } else {
+            false
         }
     }
 
