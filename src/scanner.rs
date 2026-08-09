@@ -119,20 +119,24 @@ impl Scanner {
                 }
             }
 
-            ' ' => { } /* do nothing */
+            ' ' => {} /* do nothing */
 
-            '\r' => { } /* do nothing */
+            '\r' => {} /* do nothing */
 
-            '\t' => { } /* do nothing */
+            '\t' => {} /* do nothing */
 
-            '\n' => self.newline()
+            '\n' => self.newline(),
 
             _ => {
-                self.err = Some(Error {
-                    what: format!("scanner can't handle {}", c),
-                    line: self.line,
-                    col: self.col,
-                })
+                if Self::is_digit(c) {
+                    self.number();
+                } else {
+                    self.err = Some(Error {
+                        what: format!("scanner can't handle {}", c),
+                        line: self.line,
+                        col: self.col,
+                    })
+                }
             }
         }
     }
@@ -169,6 +173,33 @@ impl Scanner {
         self.line += 1;
     }
 
+    fn number(&mut self) {
+        self.advance_integer();
+
+        while let Some(next) = self.peek()
+            && next == '.'
+        {
+            self.advance();
+
+            self.advance_integer();
+        }
+
+        let val: f64 = String::from_utf8(self.source[self.start..self.current].to_vec())
+            .unwrap()
+            .parse()
+            .unwrap();
+
+        self.add_token_literal(TokenType::Number, Some(Literal::Number(val)))
+    }
+
+    fn advance_integer(&mut self) {
+        while let Some(next) = self.peek()
+            && Self::is_digit(next)
+        {
+            self.advance();
+        }
+    }
+
     fn add_token(&mut self, token_type: TokenType) {
         self.add_token_literal(token_type, None)
     }
@@ -193,5 +224,9 @@ impl Scanner {
 
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
+    }
+
+    fn is_digit(c: char) -> bool {
+        c.is_ascii_digit()
     }
 }
