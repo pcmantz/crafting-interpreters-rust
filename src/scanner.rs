@@ -3,7 +3,6 @@
  */
 
 use crate::prelude::*;
-
 use crate::token::*;
 
 pub fn scan_tokens(input: String) -> Result<Vec<Token>, Error> {
@@ -70,7 +69,6 @@ impl Scanner {
             '-' => self.add_token(TokenType::Minus),
             '+' => self.add_token(TokenType::Plus),
             ';' => self.add_token(TokenType::Semicolon),
-            '/' => self.add_token(TokenType::Slash),
             '*' => self.add_token(TokenType::Star),
 
             /* Potential double character tokens */
@@ -108,12 +106,9 @@ impl Scanner {
 
             '/' => {
                 if self.maybe_match('/') {
-                    while let Some(ch) = self.peek()
-                        && ch != '\n'
-                        && !self.is_at_end()
-                    {
-                        self.advance();
-                    }
+                    self.comment();
+                } else if self.maybe_match('*') {
+                    self.multiline_comment();
                 } else {
                     self.add_token(TokenType::Slash);
                 }
@@ -127,9 +122,13 @@ impl Scanner {
 
             '\n' => self.newline(),
 
+            '"' => self.string(),
+
             _ => {
                 if Self::is_digit(c) {
                     self.number();
+                } else if Self::is_alpha(c) {
+                    self.identifier();
                 } else {
                     self.err = Some(Error {
                         what: format!("scanner can't handle {}", c),
@@ -173,6 +172,49 @@ impl Scanner {
         self.line += 1;
     }
 
+    fn comment(&mut self) {
+        while let Some(next) = self.peek()
+            && next != '\n'
+            && !self.is_at_end()
+        {
+            self.advance();
+        }
+    }
+
+    fn multiline_comment(&mut self) {
+        while !self.done() {
+            let c = self.advance();
+
+            match c {
+                '*' => {
+                    if self.maybe_match('/') {
+                        return;
+                    } else {
+                        /* do nothing */
+                    }
+                }
+
+                '/' => {
+                    if self.maybe_match('*') {
+                        self.multiline_comment();
+                    } else {
+                        /* do nothing */
+                    }
+                }
+
+                '\n' => self.newline(),
+
+                _ => { /* do nothing */ }
+            }
+        }
+
+        self.err = Some(Error {
+            what: format!("unterminated comment."),
+            line: self.line,
+            col: self.col,
+        })
+    }
+
     fn number(&mut self) {
         self.advance_integer();
 
@@ -192,6 +234,51 @@ impl Scanner {
         self.add_token_literal(TokenType::Number, Some(Literal::Number(val)))
     }
 
+    fn string(&mut self) {
+        while let Some(next) = self.peek()
+            && next != '"'
+            && !self.is_at_end()
+        {
+            if next == '\n' {
+                self.newline();
+            }
+
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            self.err = Some(Error {
+                what: format!("unterminated string."),
+                line: self.line,
+                col: self.col,
+            })
+        }
+
+        /* consume the closing brace. TODO: error handling here with maybe_match? */
+        self.advance();
+
+        let str =
+            String::from_utf8(self.source[(self.start + 1)..(self.current - 1)].to_vec()).unwrap();
+
+        self.add_token_literal(TokenType::String, Some(Literal::Str(str)));
+    }
+
+    fn identifier(&mut self) {
+        while let Some(next) = self.peek()
+            && Self::is_alphanumeric(next)
+        {
+            self.advance();
+        }
+
+        let str = String::from_utf8(self.source[self.start..self.current].to_vec()).unwrap();
+
+        if let Some(token_type) = keyword(&str) {
+            self.add_token(token_type);
+        } else {
+            self.add_token_literal(TokenType::Identifier, Some(Literal::Identifier(str)));
+        }
+    }
+
     fn advance_integer(&mut self) {
         while let Some(next) = self.peek()
             && Self::is_digit(next)
@@ -205,7 +292,10 @@ impl Scanner {
     }
 
     fn add_token_literal(&mut self, token_type: TokenType, literal: Option<Literal>) {
-        let text = self.source[self.start..self.current].to_vec();
+        let text = self.source[self.start..self.current]
+            .to_vec()
+            .pipe(String::from_utf8)
+            .expect("source was valid UTF-8");
 
         let token = Token {
             ty: token_type,
@@ -228,5 +318,13 @@ impl Scanner {
 
     fn is_digit(c: char) -> bool {
         c.is_ascii_digit()
+    }
+
+    fn is_alpha(c: char) -> bool {
+        c.is_alphabetic()
+    }
+
+    fn is_alphanumeric(c: char) -> bool {
+        Self::is_digit(c) || Self::is_alpha(c)
     }
 }

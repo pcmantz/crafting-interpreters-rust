@@ -4,7 +4,7 @@
 
 use crate::prelude::*;
 
-static KEYWORDS: LazyLock<HashMap<&str, TokenType>> = LazyLock::new(|| {
+pub static KEYWORDS: LazyLock<HashMap<&str, TokenType>> = LazyLock::new(|| {
     HashMap::from([
         ("and", TokenType::And),
         ("class", TokenType::Class),
@@ -24,6 +24,10 @@ static KEYWORDS: LazyLock<HashMap<&str, TokenType>> = LazyLock::new(|| {
         ("while", TokenType::While),
     ])
 });
+
+pub fn keyword(kw: &str) -> Option<TokenType> {
+    KEYWORDS.get(kw).copied()
+}
 
 #[derive(Debug)]
 pub struct Error {
@@ -91,9 +95,18 @@ pub enum Literal {
     Number(f64),
 }
 
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Literal::Identifier(s) | Literal::Str(s) => write!(f, "{s}"),
+            Literal::Number(n) => write!(f, "{n}"),
+        }
+    }
+}
+
 pub struct Token {
     pub ty: TokenType,
-    pub lexeme: Vec<u8>,
+    pub lexeme: String,
     pub literal: Option<Literal>,
     pub line: usize,
     pub col: i64,
@@ -104,11 +117,13 @@ impl fmt::Debug for Token {
         write!(
             f,
             "Token {{ type: {:?}, lexeme: \"{}\", literal: {:?}, line: {:?}, col: {:?}}}",
-            self.ty,
-            String::from_utf8(self.lexeme.clone()).unwrap(),
-            self.literal,
-            self.line,
-            self.col
+            self.ty, self.lexeme, self.literal, self.line, self.col
         )
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.lexeme)
     }
 }
