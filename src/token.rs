@@ -29,13 +29,6 @@ pub fn keyword(kw: &str) -> Option<TokenType> {
     KEYWORDS.get(kw).copied()
 }
 
-#[derive(Debug)]
-pub struct Error {
-    pub what: String,
-    pub line: usize,
-    pub col: i64,
-}
-
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum TokenType {
     // Single Character Tokens
@@ -93,6 +86,9 @@ pub enum Literal {
     Identifier(String),
     Str(String),
     Number(f64),
+    True,
+    False,
+    Nil,
 }
 
 impl fmt::Display for Literal {
@@ -100,26 +96,20 @@ impl fmt::Display for Literal {
         match self {
             Literal::Identifier(s) | Literal::Str(s) => write!(f, "{s}"),
             Literal::Number(n) => write!(f, "{n}"),
+            Literal::True => write!(f, "True"),
+            Literal::False => write!(f, "False"),
+            Literal::Nil => write!(f, "Nil"),
         }
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Token {
     pub ty: TokenType,
     pub lexeme: String,
     pub literal: Option<Literal>,
     pub line: usize,
     pub col: i64,
-}
-
-impl fmt::Debug for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Token {{ type: {:?}, lexeme: \"{}\", literal: {:?}, line: {:?}, col: {:?}}}",
-            self.ty, self.lexeme, self.literal, self.line, self.col
-        )
-    }
 }
 
 impl fmt::Display for Token {

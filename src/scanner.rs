@@ -2,6 +2,7 @@
  *
  */
 
+use crate::error::*;
 use crate::prelude::*;
 use crate::token::*;
 
@@ -92,7 +93,7 @@ impl Scanner {
                 if self.maybe_match('=') {
                     self.add_token(TokenType::LessEqual)
                 } else {
-                    self.add_token(TokenType::LessEqual)
+                    self.add_token(TokenType::Less)
                 }
             }
 
@@ -100,7 +101,7 @@ impl Scanner {
                 if self.maybe_match('=') {
                     self.add_token(TokenType::GreaterEqual)
                 } else {
-                    self.add_token(TokenType::GreaterEqual)
+                    self.add_token(TokenType::Greater)
                 }
             }
 
@@ -130,8 +131,8 @@ impl Scanner {
                 } else if Self::is_alpha(c) {
                     self.identifier();
                 } else {
-                    self.err = Some(Error {
-                        what: format!("scanner can't handle {}", c),
+                    self.err = Some(Error::ScannerError {
+                        message: format!("scanner can't handle {}", c),
                         line: self.line,
                         col: self.col,
                     })
@@ -208,8 +209,8 @@ impl Scanner {
             }
         }
 
-        self.err = Some(Error {
-            what: format!("unterminated comment."),
+        self.err = Some(Error::ScannerError {
+            message: "unterminated comment.".to_string(),
             line: self.line,
             col: self.col,
         })
@@ -226,7 +227,9 @@ impl Scanner {
             self.advance_integer();
         }
 
-        let val: f64 = String::from_utf8(self.source[self.start..self.current].to_vec())
+        let val: f64 = self.source[self.start..self.current]
+            .to_vec()
+            .pipe(String::from_utf8)
             .unwrap()
             .parse()
             .unwrap();
@@ -247,8 +250,8 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            self.err = Some(Error {
-                what: format!("unterminated string."),
+            self.err = Some(Error::ScannerError {
+                message: "unterminated string.".to_string(),
                 line: self.line,
                 col: self.col,
             })
@@ -257,8 +260,10 @@ impl Scanner {
         /* consume the closing brace. TODO: error handling here with maybe_match? */
         self.advance();
 
-        let str =
-            String::from_utf8(self.source[(self.start + 1)..(self.current - 1)].to_vec()).unwrap();
+        let str = self.source[(self.start + 1)..(self.current - 1)]
+            .to_vec()
+            .pipe(String::from_utf8)
+            .unwrap();
 
         self.add_token_literal(TokenType::String, Some(Literal::Str(str)));
     }
