@@ -4,12 +4,76 @@
 
 use crate::prelude::*;
 
-pub enum Error {
-    ScannerError { message: String, line: usize, col: i64 },
+use crate::token::*;
 
-    WrongToken { message: String },
+#[derive(Debug, Clone)]
+pub struct Error {
+    kind: ErrorKind,
+    line: usize,
+    col: i64,
+}
 
-    MissingExpression { message: String },
+#[derive(Debug, Clone)]
+pub enum ErrorKind {
+    ScannerError {
+        message: String,
+    },
+    WrongToken {
+        expected: TokenType,
+        found: TokenType,
+    },
+    MissingExpression {
+        message: String,
+    },
+}
 
-    MissingPrimary { message: String },
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[line {}:{}] Error: ", self.line, self.col)?;
+
+        match &self.kind {
+            ErrorKind::WrongToken { expected, found } => {
+                write!(f, "Wrong token. expected: {}, found: {}", expected, found)
+            }
+
+            ErrorKind::ScannerError { message } | ErrorKind::MissingExpression { message } => {
+                write!(f, "{}", message)
+            }
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl Error {
+    pub fn scanner(message: impl Into<String>, line: usize, col: i64) -> Error {
+        Error {
+            kind: ErrorKind::ScannerError {
+                message: message.into(),
+            },
+            line,
+            col,
+        }
+    }
+
+    pub fn wrong_token(expected: TokenType, found: &Token) -> Error {
+        Error {
+            kind: ErrorKind::WrongToken {
+                expected,
+                found: found.ty,
+            },
+            line: found.line,
+            col: found.col,
+        }
+    }
+
+    pub fn missing_expression(message: impl Into<String>, line: usize, col: i64) -> Error {
+        Error {
+            kind: ErrorKind::MissingExpression {
+                message: message.into(),
+            },
+            line,
+            col,
+        }
+    }
 }

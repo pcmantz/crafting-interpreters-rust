@@ -8,13 +8,11 @@ use crate::error::*;
 use crate::expr::*;
 use crate::token::*;
 
-pub fn parse(tokens: Vec<Token>) {
-    let mut parser = Parser {
-        tokens,
-        current: 0,
-    };
+pub fn parse(tokens: Vec<Token>) -> Result<Expr, Error> {
+    let mut parser = Parser { tokens, current: 0 };
 
-    parser.expression();
+    /* TODO: This will change to something else */
+    parser.expression()
 }
 
 pub struct Parser {
@@ -135,7 +133,7 @@ impl Parser {
 
             TokenType::LeftParen => {
                 let expr = self.expression()?;
-                self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
+                self.consume(TokenType::RightParen)?;
 
                 Ok(Expr::Grouping(GroupingExpr {
                     expression: Box::new(expr),
@@ -143,21 +141,21 @@ impl Parser {
             }
 
             /* This should throw an error. */
-            _ => Err(Error::MissingExpression {
-                message: "Expected primary expression.".into(),
-            }),
+            _ => Err(Error::missing_expression(
+                "Expected primary expression.",
+                token.line,
+                token.col,
+            )),
         }
     }
 
     /* Helper Functions */
 
-    fn consume(&mut self, ty: TokenType, message: impl Into<String>) -> Result<Token, Error> {
+    fn consume(&mut self, ty: TokenType) -> Result<Token, Error> {
         if self.check(ty) {
             Ok(self.advance().clone())
         } else {
-            Err(Error::WrongToken {
-                message: message.into(),
-            })
+            Err(Error::wrong_token(ty, self.peek()))
         }
     }
 

@@ -81,6 +81,12 @@ pub enum TokenType {
     EOF,
 }
 
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Literal {
     Identifier(String),

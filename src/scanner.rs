@@ -131,11 +131,11 @@ impl Scanner {
                 } else if Self::is_alpha(c) {
                     self.identifier();
                 } else {
-                    self.err = Some(Error::ScannerError {
-                        message: format!("scanner can't handle {}", c),
-                        line: self.line,
-                        col: self.col,
-                    })
+                    self.err = Some(Error::scanner(
+                        format!("scanner can't handle {}", c),
+                        self.line,
+                        self.col,
+                    ))
                 }
             }
         }
@@ -209,11 +209,7 @@ impl Scanner {
             }
         }
 
-        self.err = Some(Error::ScannerError {
-            message: "unterminated comment.".to_string(),
-            line: self.line,
-            col: self.col,
-        })
+        self.err = Some(Error::scanner("unterminated comment.", self.line, self.col))
     }
 
     fn number(&mut self) {
@@ -250,11 +246,11 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            self.err = Some(Error::ScannerError {
-                message: "unterminated string.".to_string(),
-                line: self.line,
-                col: self.col,
-            })
+            self.err = Some(Error::scanner(
+                "unterminated string.".to_string(),
+                self.line,
+                self.col,
+            ))
         }
 
         /* consume the closing brace. TODO: error handling here with maybe_match? */

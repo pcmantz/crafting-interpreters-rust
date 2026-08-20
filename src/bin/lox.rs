@@ -39,17 +39,14 @@ impl Lox {
 
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
-
             let code = input.trim_end().to_string();
-            let resp = Lox::run_code(code)?;
 
-            // print!("{}\n", resp);
-            std::io::stdout().flush()?;
+            Lox::run_code(code)?;
         }
     }
 
     fn run_code(code: String) -> Result<()> {
-        Ok(())
+        todo!("Call the parser and do some things, I don't know.");
     }
 }
 
