@@ -52,7 +52,14 @@ impl Scanner {
 
         match self.err {
             Some(_) => {}
-            None => self.add_token(TokenType::EOF),
+            None => {
+                /* Add the EOF character explicitly, reset the scanner so it
+                 * doesn't consume the last token as the EOF
+                 */
+                self.start = self.current;
+
+                self.add_token(TokenType::EOF)
+            }
         }
     }
 
@@ -74,7 +81,7 @@ impl Scanner {
 
             /* Potential double character tokens */
             '!' => {
-                if self.maybe_match('=') {
+                if self.matches('=') {
                     self.add_token(TokenType::BangEqual)
                 } else {
                     self.add_token(TokenType::Bang)
@@ -82,7 +89,7 @@ impl Scanner {
             }
 
             '=' => {
-                if self.maybe_match('=') {
+                if self.matches('=') {
                     self.add_token(TokenType::EqualEqual)
                 } else {
                     self.add_token(TokenType::Equal)
@@ -90,7 +97,7 @@ impl Scanner {
             }
 
             '<' => {
-                if self.maybe_match('=') {
+                if self.matches('=') {
                     self.add_token(TokenType::LessEqual)
                 } else {
                     self.add_token(TokenType::Less)
@@ -98,7 +105,7 @@ impl Scanner {
             }
 
             '>' => {
-                if self.maybe_match('=') {
+                if self.matches('=') {
                     self.add_token(TokenType::GreaterEqual)
                 } else {
                     self.add_token(TokenType::Greater)
@@ -106,9 +113,9 @@ impl Scanner {
             }
 
             '/' => {
-                if self.maybe_match('/') {
+                if self.matches('/') {
                     self.comment();
-                } else if self.maybe_match('*') {
+                } else if self.matches('*') {
                     self.multiline_comment();
                 } else {
                     self.add_token(TokenType::Slash);
@@ -148,18 +155,16 @@ impl Scanner {
         char::from(self.source[self.current - 1])
     }
 
-    fn peek(&mut self) -> Option<char> {
+    fn peek(&mut self) -> char {
         if self.done() {
-            None
+            '\0'
         } else {
-            Some(char::from(self.source[self.current + 1]))
+            char::from(self.source[self.current])
         }
     }
 
-    fn maybe_match(&mut self, ch: char) -> bool {
-        if let Some(next) = self.peek()
-            && next == ch
-        {
+    fn matches(&mut self, ch: char) -> bool {
+        if self.peek() == ch {
             self.advance();
 
             true
@@ -174,10 +179,9 @@ impl Scanner {
     }
 
     fn comment(&mut self) {
-        while let Some(next) = self.peek()
-            && next != '\n'
-            && !self.is_at_end()
-        {
+        let next = self.peek();
+
+        while next != '\n' && !self.is_at_end() {
             self.advance();
         }
     }
@@ -188,7 +192,7 @@ impl Scanner {
 
             match c {
                 '*' => {
-                    if self.maybe_match('/') {
+                    if self.matches('/') {
                         return;
                     } else {
                         /* do nothing */
@@ -196,7 +200,7 @@ impl Scanner {
                 }
 
                 '/' => {
-                    if self.maybe_match('*') {
+                    if self.matches('*') {
                         self.multiline_comment();
                     } else {
                         /* do nothing */
@@ -213,14 +217,16 @@ impl Scanner {
     }
 
     fn number(&mut self) {
-        self.advance_integer();
+        while Self::is_digit(self.peek()) {
+            self.advance();
+        }
 
-        while let Some(next) = self.peek()
-            && next == '.'
-        {
+        if self.peek() == '.' {
             self.advance();
 
-            self.advance_integer();
+            while Self::is_digit(self.peek()) {
+                self.advance();
+            }
         }
 
         let val: f64 = self.source[self.start..self.current]
@@ -234,11 +240,8 @@ impl Scanner {
     }
 
     fn string(&mut self) {
-        while let Some(next) = self.peek()
-            && next != '"'
-            && !self.is_at_end()
-        {
-            if next == '\n' {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
                 self.newline();
             }
 
@@ -253,10 +256,10 @@ impl Scanner {
             ))
         }
 
-        /* consume the closing brace. TODO: error handling here with maybe_match? */
+        /* consume the closing brace. TODO: error handling here with matches? */
         self.advance();
 
-        let str = self.source[(self.start + 1)..(self.current - 1)]
+        let str = self.source[(self.start + 1)..(self.current)]
             .to_vec()
             .pipe(String::from_utf8)
             .unwrap();
@@ -265,9 +268,7 @@ impl Scanner {
     }
 
     fn identifier(&mut self) {
-        while let Some(next) = self.peek()
-            && Self::is_alphanumeric(next)
-        {
+        while Self::is_alphanumeric(self.peek()) {
             self.advance();
         }
 
@@ -277,14 +278,6 @@ impl Scanner {
             self.add_token(token_type);
         } else {
             self.add_token_literal(TokenType::Identifier, Some(Literal::Identifier(str)));
-        }
-    }
-
-    fn advance_integer(&mut self) {
-        while let Some(next) = self.peek()
-            && Self::is_digit(next)
-        {
-            self.advance();
         }
     }
 
@@ -314,7 +307,7 @@ impl Scanner {
     }
 
     fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
+        self.current + 1 >= self.source.len()
     }
 
     fn is_digit(c: char) -> bool {
