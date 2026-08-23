@@ -22,6 +22,7 @@ pub struct Parser {
 
 impl Parser {
     /* Patterns */
+
     fn expression(&mut self) -> Result<Expr, Error> {
         let expr = self.equality()?;
 
@@ -35,11 +36,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.comparison()?;
 
-            expr = Expr::Binary(BinaryExpr {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            });
+            expr = Expr::binary(expr, operator, right);
         }
 
         Ok(expr)
@@ -57,11 +54,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.term()?;
 
-            expr = Expr::Binary(BinaryExpr {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            });
+            expr = Expr::binary(expr, operator, right);
         }
 
         Ok(expr)
@@ -74,11 +67,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.factor()?;
 
-            expr = Expr::Binary(BinaryExpr {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            });
+            expr = Expr::binary(expr, operator, right);
         }
 
         Ok(expr)
@@ -91,11 +80,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
-            expr = Expr::Binary(BinaryExpr {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            });
+            expr = Expr::binary(expr, operator, right);
         }
 
         Ok(expr)
@@ -105,10 +90,8 @@ impl Parser {
         if self.matches(vec![TokenType::Bang, TokenType::Minus]) {
             let operator = self.previous().clone();
             let right = self.unary()?;
-            return Ok(Expr::Unary(UnaryExpr {
-                operator,
-                right: Box::new(right),
-            }));
+
+            return Ok(Expr::unary(operator, right));
         }
 
         self.primary()
@@ -118,26 +101,18 @@ impl Parser {
         let token = self.advance();
 
         match token.ty {
-            TokenType::False => Ok(Expr::Literal(LiteralExpr {
-                value: Literal::False,
-            })),
-            TokenType::True => Ok(Expr::Literal(LiteralExpr {
-                value: Literal::True,
-            })),
-            TokenType::Nil => Ok(Expr::Literal(LiteralExpr {
-                value: Literal::Nil,
-            })),
-            TokenType::Number | TokenType::String => Ok(Expr::Literal(LiteralExpr {
-                value: token.literal.clone().unwrap(),
-            })),
+            TokenType::False => Ok(Expr::literal(Literal::False)),
+            TokenType::True => Ok(Expr::literal(Literal::True)),
+            TokenType::Nil => Ok(Expr::literal(Literal::Nil)),
+            TokenType::Number | TokenType::String => {
+                Ok(Expr::literal(token.literal.clone().unwrap()))
+            }
 
             TokenType::LeftParen => {
                 let expr = self.expression()?;
                 self.consume(TokenType::RightParen)?;
 
-                Ok(Expr::Grouping(GroupingExpr {
-                    expression: Box::new(expr),
-                }))
+                Ok(Expr::grouping(expr))
             }
 
             /* This should throw an error. */

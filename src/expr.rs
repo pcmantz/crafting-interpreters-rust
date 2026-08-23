@@ -6,6 +6,7 @@ use crate::prelude::*;
 
 use crate::token::*;
 
+#[derive(Debug, Clone)]
 pub enum Expr {
     Literal(LiteralExpr),
     Unary(UnaryExpr),
@@ -13,21 +14,52 @@ pub enum Expr {
     Grouping(GroupingExpr),
 }
 
+impl Expr {
+    pub fn literal(value: Literal) -> Expr {
+        Expr::Literal(LiteralExpr { value })
+    }
+
+    pub fn unary(operator: Token, expr: Expr) -> Expr {
+        Expr::Unary(UnaryExpr {
+            operator,
+            right: Box::new(expr),
+        })
+    }
+
+    pub fn binary(left: Expr, operator: Token, right: Expr) -> Expr {
+        Expr::Binary(BinaryExpr {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        })
+    }
+
+    pub fn grouping(expr: Expr) -> Expr {
+        Expr::Grouping(GroupingExpr {
+            expression: Box::new(expr),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct LiteralExpr {
     pub value: Literal,
 }
 
+#[derive(Debug, Clone)]
 pub struct UnaryExpr {
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
+#[derive(Debug, Clone)]
 pub struct BinaryExpr {
     pub left: Box<Expr>,
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
+#[derive(Debug, Clone)]
 pub struct GroupingExpr {
     pub expression: Box<Expr>,
 }

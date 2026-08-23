@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 pub use color_eyre::{Context, Result};
+use itertools::Itertools;
 
 use crafting_interpreters::error::*;
 use crafting_interpreters::prelude::*;
@@ -24,9 +25,12 @@ impl LoxAst {
     fn run(self) -> Result<()> {
         let code = std::fs::read_to_string(self.file)?;
         let tokens = scanner::scan_tokens(code)?;
-        let ast = parser::parse(tokens)?;
 
-        print!("{}", ast);
+        print!("TOKENS: {}\n", tokens.iter().join(", "));
+
+        let ast = parser::parse(tokens.clone())?;
+
+        print!("AST: {}\n", ast);
 
         Ok(())
     }
