@@ -2,16 +2,11 @@
  *
  */
 
-use std::io;
-use std::io::Write;
 use std::path::PathBuf;
 
 use clap::Parser;
 pub use color_eyre::{Context, Result};
 use itertools::Itertools;
-
-use crafting_interpreters::error::*;
-use crafting_interpreters::prelude::*;
 
 use crafting_interpreters::parser;
 use crafting_interpreters::scanner;
