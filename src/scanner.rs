@@ -253,13 +253,15 @@ impl Scanner {
                 "unterminated string.".to_string(),
                 self.line,
                 self.col,
-            ))
+            ));
+
+            return;
         }
 
         /* consume the closing brace. TODO: error handling here with matches? */
         self.advance();
 
-        let str = self.source[(self.start + 1)..(self.current)]
+        let str = self.source[self.start + 1..self.current - 1]
             .to_vec()
             .pipe(String::from_utf8)
             .unwrap();
@@ -272,9 +274,7 @@ impl Scanner {
             self.advance();
         }
 
-        let str = String::from_utf8(self.source[self.start..=self.current].to_vec()).unwrap();
-
-        print!("identifier: {}\n", str);
+        let str = String::from_utf8(self.source[self.start..self.current].to_vec()).unwrap();
 
         if let Some(token_type) = keyword(&str) {
             self.add_token(token_type);
@@ -309,7 +309,7 @@ impl Scanner {
     }
 
     fn is_at_end(&self) -> bool {
-        self.current + 1 >= self.source.len()
+        self.current >= self.source.len()
     }
 
     fn is_digit(c: char) -> bool {
@@ -374,6 +374,21 @@ mod test {
     #[test]
     fn literal_number() {
         assert_eq!(types("1234"), vec![Number, EOF])
+    }
+
+    #[test]
+    fn scan_addition() {
+        assert_eq!(types("1 + 2"), vec![Number, Plus, Number, EOF])
+    }
+
+    #[test]
+    fn scan_comment() {
+        assert_eq!(types("//comment"), vec![EOF])
+    }
+
+    #[test]
+    fn scan_multiline_comment() {
+        assert_eq!(types("/* comment */"), vec![EOF])
     }
 
     // #[test]
