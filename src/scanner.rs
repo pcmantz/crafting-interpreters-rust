@@ -6,10 +6,10 @@ use crate::error::*;
 use crate::prelude::*;
 use crate::token::*;
 
-pub fn scan_tokens(input: String) -> Result<Vec<Token>, Error> {
+pub fn scan(input: String) -> Result<Vec<Token>, Error> {
     let mut scanner: Scanner = Scanner::default();
 
-    scanner.scan_tokens(input);
+    scanner.scan(input);
 
     match scanner.err {
         Some(err) => Err(err),
@@ -42,7 +42,7 @@ impl Default for Scanner {
 }
 
 impl Scanner {
-    fn scan_tokens(&mut self, input: String) {
+    fn scan(&mut self, input: String) {
         self.source = input.into_bytes();
 
         while !self.done() {
@@ -272,7 +272,9 @@ impl Scanner {
             self.advance();
         }
 
-        let str = String::from_utf8(self.source[self.start..self.current].to_vec()).unwrap();
+        let str = String::from_utf8(self.source[self.start..=self.current].to_vec()).unwrap();
+
+        print!("identifier: {}\n", str);
 
         if let Some(token_type) = keyword(&str) {
             self.add_token(token_type);
@@ -321,4 +323,59 @@ impl Scanner {
     fn is_alphanumeric(c: char) -> bool {
         Self::is_digit(c) || Self::is_alpha(c)
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use crate::scanner;
+    use crate::token::TokenType::*;
+
+    fn types(src: &str) -> Vec<TokenType> {
+        src.to_string()
+            .pipe(scanner::scan)
+            .unwrap()
+            .into_iter()
+            .map(|t| t.ty)
+            .collect()
+    }
+
+    #[test]
+    fn handles_empty_input() {
+        assert_eq!(types(""), vec![EOF])
+    }
+
+    #[test]
+    fn literal_true() {
+        assert_eq!(types("true"), vec![True, EOF])
+    }
+
+    #[test]
+    fn literal_false() {
+        assert_eq!(types("false"), vec![False, EOF])
+    }
+
+    #[test]
+    fn literal_nil() {
+        assert_eq!(types("nil"), vec![Nil, EOF])
+    }
+
+    #[test]
+    fn literal_identifier() {
+        assert_eq!(types("identifier"), vec![Identifier, EOF])
+    }
+
+    #[test]
+    fn literal_string() {
+        assert_eq!(types("\"string\""), vec![String, EOF])
+    }
+
+    #[test]
+    fn literal_number() {
+        assert_eq!(types("1234"), vec![Number, EOF])
+    }
+
+    // #[test]
+    fn hello_world() {}
 }

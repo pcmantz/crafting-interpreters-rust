@@ -19,7 +19,7 @@ struct LoxAst {
 impl LoxAst {
     fn run(self) -> Result<()> {
         let code = std::fs::read_to_string(self.file)?;
-        let tokens = scanner::scan_tokens(code)?;
+        let tokens = scanner::scan(code)?;
 
         print!("TOKENS: {}\n", tokens.iter().join(", "));
 
