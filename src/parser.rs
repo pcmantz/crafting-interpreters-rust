@@ -43,7 +43,7 @@ impl Parser {
     }
 
     fn comparison(&mut self) -> Result<Expr, Error> {
-        let mut expr: Expr = self.factor()?;
+        let mut expr: Expr = self.term()?;
 
         while self.matches(vec![
             TokenType::Greater,
@@ -174,5 +174,27 @@ impl Parser {
 
     fn is_at_end(&mut self) -> bool {
         self.peek().ty == TokenType::EOF
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::string::String;
+
+    use crate::scanner;
+    use crate::token::TokenType::*;
+
+    use super::*;
+
+    fn sexpr(src: &str) -> String {
+        let tokens = scanner::scan(src.to_string()).expect("scanning failed.");
+        let ast = parse(tokens).expect("parsing failed.");
+
+        ast.to_string()
+    }
+
+    #[test]
+    fn parse_literal() {
+        assert_eq!(sexpr("123"), "123")
     }
 }
