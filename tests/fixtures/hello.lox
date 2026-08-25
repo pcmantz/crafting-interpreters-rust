@@ -1,0 +1,5 @@
+/* hello.lox
+ *
+ */
+
+print "Hello, World!"
