@@ -32,7 +32,7 @@ impl Parser {
     fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr: Expr = self.comparison()?;
 
-        while self.matches(vec![TokenType::Slash, TokenType::Star]) {
+        while self.matches(vec![TokenType::Equal, TokenType::BangEqual]) {
             let operator = self.previous().clone();
             let right = self.comparison()?;
 
@@ -63,7 +63,7 @@ impl Parser {
     fn term(&mut self) -> Result<Expr, Error> {
         let mut expr: Expr = self.factor()?;
 
-        while self.matches(vec![TokenType::Slash, TokenType::Star]) {
+        while self.matches(vec![TokenType::Plus, TokenType::Minus]) {
             let operator = self.previous().clone();
             let right = self.factor()?;
 
@@ -134,7 +134,33 @@ impl Parser {
         }
     }
 
-    // fn synchronize(&self) -> Type {}
+    fn synchronize(&mut self) {
+        self.advance();
+
+        while !self.is_at_end() {
+            let prev = self.previous();
+
+            if prev.ty == TokenType::Semicolon {
+                return;
+            }
+
+            let curr = self.peek();
+
+            match curr.ty {
+                TokenType::Class
+                | TokenType::For
+                | TokenType::Fun
+                | TokenType::If
+                | TokenType::Print
+                | TokenType::Return
+                | TokenType::Var
+                | TokenType::While => return,
+                _ => {}
+            }
+
+            self.advance();
+        }
+    }
 
     fn previous(&mut self) -> &Token {
         &self.tokens[self.current - 1]
@@ -182,7 +208,6 @@ mod tests {
     use std::string::String;
 
     use crate::scanner;
-    use crate::token::TokenType::*;
 
     use super::*;
 
@@ -194,7 +219,47 @@ mod tests {
     }
 
     #[test]
-    fn parse_literal() {
+    fn parse_number() {
         assert_eq!(sexpr("123"), "123")
+    }
+
+    #[test]
+    fn parse_true() {
+        assert_eq!(sexpr("true"), "True")
+    }
+
+    #[test]
+    fn parse_false() {
+        assert_eq!(sexpr("false"), "False")
+    }
+
+    #[test]
+    fn parse_nil() {
+        assert_eq!(sexpr("nil"), "Nil")
+    }
+
+    // #[test]
+    // fn parse_identifer() {
+    //     assert_eq!(sexpr("identifier"), "identifier")
+    // }
+
+    #[test]
+    fn parse_addition() {
+        assert_eq!(sexpr("1 + 2"), "(+ 1 2)")
+    }
+
+    #[test]
+    fn parse_division() {
+        assert_eq!(sexpr("1 / 2"), "(/ 1 2)")
+    }
+
+    #[test]
+    fn parse_comparison() {
+        assert_eq!(sexpr("3 < 5"), "(< 3 5)")
+    }
+
+    #[test]
+    fn parse_equality() {
+        assert_eq!(sexpr("100 = 100"), "(= 100 100)")
     }
 }
