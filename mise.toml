@@ -1,0 +1,17 @@
+# mise.toml
+
+[tools]
+rust = "latest"
+
+"cargo:cargo-tarpaulin" = "latest"
+
+[task_config]
+includes = ["bin"]
+
+[tasks.test]
+description = "run unit tests"
+run = "cargo test"
+
+[tasks.coverage]
+description = "generate test coverage report"
+run = "cargo tarpaulin"
