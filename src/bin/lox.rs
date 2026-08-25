@@ -45,7 +45,7 @@ impl Lox {
         }
     }
 
-    fn run_code(code: String) -> Result<()> {
+    fn run_code(_code: String) -> Result<()> {
         todo!("Call the parser and do some things, I don't know.");
     }
 }
