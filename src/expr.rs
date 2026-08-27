@@ -10,9 +10,24 @@ use crate::value::*;
 #[derive(Debug, Clone)]
 pub enum Expr {
     Literal(LiteralExpr),
+    Variable(VariableExpr),
+    Assign(AssignExpr),
     Unary(UnaryExpr),
     Binary(BinaryExpr),
     Grouping(GroupingExpr),
+}
+
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Expr::Literal(e) => write!(f, "{}", e.value),
+            Expr::Unary(e) => write!(f, "({} {})", e.operator.lexeme, e.right),
+            Expr::Binary(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
+            Expr::Grouping(e) => write!(f, "(group {})", e.expression),
+            Expr::Variable(e) => todo!(),
+            Expr::Assign(e) => todo!(),
+        }
+    }
 }
 
 impl Expr {
@@ -65,13 +80,12 @@ pub struct GroupingExpr {
     pub expression: Box<Expr>,
 }
 
-impl fmt::Display for Expr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Expr::Literal(e) => write!(f, "{}", e.value),
-            Expr::Unary(e) => write!(f, "({} {})", e.operator.lexeme, e.right),
-            Expr::Binary(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
-            Expr::Grouping(e) => write!(f, "(group {})", e.expression),
-        }
-    }
+#[derive(Debug, Clone)]
+pub struct VariableExpr {
+    pub expression: Box<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AssignExpr {
+    pub expression: Box<Expr>,
 }

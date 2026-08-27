@@ -6,23 +6,66 @@ use crate::prelude::*;
 
 use crate::error::*;
 use crate::expr::*;
+use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
 pub fn parse(tokens: Vec<Token>) -> Result<Expr, Error> {
-    let mut parser = Parser { tokens, current: 0 };
+    let mut parser = Parser::default();
 
-    /* TODO: This will change to something else */
-    parser.expression()
+    parser.parse(tokens)
 }
 
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    statements: Vec<Stmt>,
+}
+
+impl Default for Parser {
+    fn default() -> Self {
+        Self {
+            tokens: Vec::new(),
+            current: 0,
+            statements: Vec::new(),
+        }
+    }
 }
 
 impl Parser {
     /* Patterns */
+
+    fn parse(&mut self, tokens: Vec<Token>) -> Result<Vec<Stmt>, Error> {
+        self.tokens = tokens;
+
+        while !self.is_at_end() {
+            self.statements.push(self.statement()?);
+        }
+
+        self.statements
+    }
+
+    fn statement(&mut self) -> Result<Stmt, Error> {
+        if self.matches(vec![TokenType::Print]) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, Error> {
+        let value = self.expression();
+        self.consume(TokenType::Semicolon);
+
+        Ok(Stmt::print(value))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, Error> {
+        let expr = self.expression();
+        self.consume(TokenType::Semicolon);
+
+        Ok(Stmt::expression(expr))
+    }
 
     fn expression(&mut self) -> Result<Expr, Error> {
         let expr = self.equality()?;

@@ -10,9 +10,11 @@ pub mod pipe;
 /* data types */
 pub mod error;
 pub mod expr;
+pub mod stmt;
 pub mod token;
 pub mod value;
 
 /* logic */
+pub mod interpreter;
 pub mod parser;
 pub mod scanner;
