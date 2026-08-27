@@ -8,6 +8,9 @@ rust = "latest"
 [task_config]
 includes = ["bin"]
 
+[tasks.build]
+run = 'cargo build'
+
 [tasks.test]
 description = "run unit tests"
 run = "cargo test"
