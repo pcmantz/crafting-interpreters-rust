@@ -25,6 +25,10 @@ pub enum ErrorKind {
     MissingExpression {
         message: String,
     },
+    Runtime {
+        token: Token,
+        message: String,
+    },
 }
 
 impl fmt::Display for Error {
@@ -35,10 +39,10 @@ impl fmt::Display for Error {
             ErrorKind::WrongToken { expected, found } => {
                 write!(f, "Wrong token. expected: {}, found: {}", expected, found)
             }
-
             ErrorKind::ScannerError { message } | ErrorKind::MissingExpression { message } => {
                 write!(f, "{}", message)
             }
+            ErrorKind::Runtime { token, message } => write!(f, "{}", message),
         }
     }
 }
@@ -74,6 +78,17 @@ impl Error {
             },
             line,
             col,
+        }
+    }
+
+    pub fn runtime(token: &Token, message: impl Into<String>) -> Error {
+        Error {
+            kind: ErrorKind::Runtime {
+                token: token.clone(),
+                message: message.into(),
+            },
+            line: token.line,
+            col: token.col,
         }
     }
 }
