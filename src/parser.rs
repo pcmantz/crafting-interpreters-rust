@@ -262,4 +262,21 @@ mod tests {
     fn parse_equality() {
         assert_eq!(sexpr("100 = 100"), "(= 100 100)")
     }
+
+    #[test]
+    fn parse_negation() {
+        assert_eq!(sexpr("-32"), "(- 32)")
+    }
+
+    #[test]
+    fn parse_grouping() {
+        assert_eq!(sexpr("1 / (2 + 3)"), "(/ 1 (group (+ 2 3)))")
+    }
+
+    #[test]
+    fn parse_mult_addition_ordering() {
+        assert_eq!(sexpr("1 / (2 + 3)"), "(/ 1 (group (+ 2 3)))")
+    }
+
+
 }
