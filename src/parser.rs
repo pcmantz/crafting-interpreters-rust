@@ -7,6 +7,7 @@ use crate::prelude::*;
 use crate::error::*;
 use crate::expr::*;
 use crate::token::*;
+use crate::value::*;
 
 pub fn parse(tokens: Vec<Token>) -> Result<Expr, Error> {
     let mut parser = Parser { tokens, current: 0 };
@@ -101,13 +102,6 @@ impl Parser {
         let token = self.advance();
 
         match token.ty {
-            TokenType::False => Ok(Expr::literal(Literal::False)),
-            TokenType::True => Ok(Expr::literal(Literal::True)),
-            TokenType::Nil => Ok(Expr::literal(Literal::Nil)),
-            TokenType::Number | TokenType::String => {
-                Ok(Expr::literal(token.literal.clone().unwrap()))
-            }
-
             TokenType::LeftParen => {
                 let expr = self.expression()?;
                 self.consume(TokenType::RightParen)?;
@@ -115,19 +109,19 @@ impl Parser {
                 Ok(Expr::grouping(expr))
             }
 
-            /* This should throw an error. */
-            _ => Err(Error::missing_expression(
-                "Expected primary expression.",
-                token.line,
-                token.col,
-            )),
+            /* NOTE: This tries to pull a value, otherwise it errors. May have to
+             * explode into match later.
+             */
+            _ => Value::from_token(token.clone())
+                .map(Expr::literal)
+                .ok_or_else(|| Error::missing_expression(&token, "Expected primary expression.")),
         }
     }
 
     /* Helper Functions */
 
     fn consume(&mut self, ty: TokenType) -> Result<Token, Error> {
-        if self.check(ty) {
+        if self.check(&ty) {
             Ok(self.advance().clone())
         } else {
             Err(Error::wrong_token(ty, self.peek()))
@@ -162,11 +156,11 @@ impl Parser {
         }
     }
 
-    fn previous(&mut self) -> &Token {
+    fn previous(&self) -> &Token {
         &self.tokens[self.current - 1]
     }
 
-    fn peek(&mut self) -> &Token {
+    fn peek(&self) -> &Token {
         &self.tokens[self.current]
     }
 
@@ -190,15 +184,15 @@ impl Parser {
         }
     }
 
-    fn check(&mut self, ty: TokenType) -> bool {
+    fn check(&self, ty: &TokenType) -> bool {
         if self.is_at_end() {
             return false;
         }
 
-        self.peek().ty == ty
+        self.peek().ty == *ty
     }
 
-    fn is_at_end(&mut self) -> bool {
+    fn is_at_end(&self) -> bool {
         self.peek().ty == TokenType::EOF
     }
 }
@@ -225,17 +219,17 @@ mod tests {
 
     #[test]
     fn parse_true() {
-        assert_eq!(sexpr("true"), "True")
+        assert_eq!(sexpr("true"), "true")
     }
 
     #[test]
     fn parse_false() {
-        assert_eq!(sexpr("false"), "False")
+        assert_eq!(sexpr("false"), "false")
     }
 
     #[test]
     fn parse_nil() {
-        assert_eq!(sexpr("nil"), "Nil")
+        assert_eq!(sexpr("nil"), "nil")
     }
 
     // #[test]
@@ -277,6 +271,4 @@ mod tests {
     fn parse_mult_addition_ordering() {
         assert_eq!(sexpr("1 / (2 + 3)"), "(/ 1 (group (+ 2 3)))")
     }
-
-
 }

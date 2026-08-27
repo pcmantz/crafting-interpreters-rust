@@ -42,7 +42,7 @@ impl fmt::Display for Error {
             ErrorKind::ScannerError { message } | ErrorKind::MissingExpression { message } => {
                 write!(f, "{}", message)
             }
-            ErrorKind::Runtime { token, message } => write!(f, "{}", message),
+            ErrorKind::Runtime { message, .. } => write!(f, "{}", message),
         }
     }
 }
@@ -64,20 +64,20 @@ impl Error {
         Error {
             kind: ErrorKind::WrongToken {
                 expected,
-                found: found.ty,
+                found: found.ty.clone(),
             },
             line: found.line,
             col: found.col,
         }
     }
 
-    pub fn missing_expression(message: impl Into<String>, line: usize, col: i64) -> Error {
+    pub fn missing_expression(token: &Token, message: impl Into<String>) -> Error {
         Error {
             kind: ErrorKind::MissingExpression {
                 message: message.into(),
             },
-            line,
-            col,
+            line: token.line,
+            col: token.col,
         }
     }
 

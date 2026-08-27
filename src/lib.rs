@@ -4,9 +4,15 @@
 
 pub mod prelude;
 
+/* utility */
+pub mod pipe;
+
+/* data types */
 pub mod error;
 pub mod expr;
-pub mod parser;
-pub mod pipe;
-pub mod scanner;
 pub mod token;
+pub mod value;
+
+/* logic */
+pub mod parser;
+pub mod scanner;

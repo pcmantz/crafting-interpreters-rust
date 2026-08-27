@@ -155,7 +155,7 @@ impl Scanner {
         char::from(self.source[self.current - 1])
     }
 
-    fn peek(&mut self) -> char {
+    fn peek(&self) -> char {
         if self.done() {
             '\0'
         } else {
@@ -236,7 +236,7 @@ impl Scanner {
             .parse()
             .unwrap();
 
-        self.add_token_literal(TokenType::Number, Some(Literal::Number(val)))
+        self.add_token(TokenType::Num(val))
     }
 
     fn string(&mut self) {
@@ -266,7 +266,7 @@ impl Scanner {
             .pipe(String::from_utf8)
             .unwrap();
 
-        self.add_token_literal(TokenType::String, Some(Literal::Str(str)));
+        self.add_token(TokenType::Str(str));
     }
 
     fn identifier(&mut self) {
@@ -276,18 +276,13 @@ impl Scanner {
 
         let str = String::from_utf8(self.source[self.start..self.current].to_vec()).unwrap();
 
-        if let Some(token_type) = keyword(&str) {
-            self.add_token(token_type);
-        } else {
-            self.add_token_literal(TokenType::Identifier, Some(Literal::Identifier(str)));
-        }
+        self.add_token(match keyword(&str) {
+            Some(ty) => ty,
+            None => TokenType::Identifier(str),
+        })
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.add_token_literal(token_type, None)
-    }
-
-    fn add_token_literal(&mut self, token_type: TokenType, literal: Option<Literal>) {
         let text = self.source[self.start..self.current]
             .to_vec()
             .pipe(String::from_utf8)
@@ -296,7 +291,6 @@ impl Scanner {
         let token = Token {
             ty: token_type,
             lexeme: text,
-            literal,
             line: self.line,
             col: self.col,
         };
@@ -311,6 +305,8 @@ impl Scanner {
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
     }
+
+    /* Helpers */
 
     fn is_digit(c: char) -> bool {
         c.is_ascii_digit()
@@ -363,22 +359,22 @@ mod test {
 
     #[test]
     fn literal_identifier() {
-        assert_eq!(types("identifier"), vec![Identifier, EOF])
+        assert_eq!(types("identifier"), vec![Identifier(String::from("identifier")), EOF])
     }
 
     #[test]
     fn literal_string() {
-        assert_eq!(types("\"string\""), vec![String, EOF])
+        assert_eq!(types("\"string\""), vec![Str(String::from("string")), EOF])
     }
 
     #[test]
     fn literal_number() {
-        assert_eq!(types("1234"), vec![Number, EOF])
+        assert_eq!(types("1234"), vec![Num(1234 as f64), EOF])
     }
 
     #[test]
     fn scan_addition() {
-        assert_eq!(types("1 + 2"), vec![Number, Plus, Number, EOF])
+        assert_eq!(types("1 + 2"), vec![Num(1 as f64), Plus, Num(2 as f64), EOF])
     }
 
     #[test]

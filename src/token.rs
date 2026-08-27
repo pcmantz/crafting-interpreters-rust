@@ -26,11 +26,21 @@ pub static KEYWORDS: LazyLock<HashMap<&str, TokenType>> = LazyLock::new(|| {
 });
 
 pub fn keyword(kw: &str) -> Option<TokenType> {
-    KEYWORDS.get(kw).copied()
+    KEYWORDS.get(kw).cloned()
 }
 
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum TokenType {
+    // Literals
+    Str(String),
+    Num(f64),
+    True,
+    False,
+    Nil,
+
+    // identifiers
+    Identifier(String),
+
     // Single Character Tokens
     LeftParen,
     RightParen,
@@ -54,26 +64,18 @@ pub enum TokenType {
     Less,
     LessEqual,
 
-    // Longer tokens
-    Identifier,
-    String,
-    Number,
-
     // Keywords
     And,
     Class,
     Else,
-    False,
     Fun,
     For,
     If,
-    Nil,
     Or,
     Print,
     Return,
     Super,
     This,
-    True,
     Var,
     While,
 
@@ -83,28 +85,13 @@ pub enum TokenType {
 
 impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Literal {
-    Identifier(String),
-    Str(String),
-    Number(f64),
-    True,
-    False,
-    Nil,
-}
-
-impl fmt::Display for Literal {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Literal::Identifier(s) | Literal::Str(s) => write!(f, "{s}"),
-            Literal::Number(n) => write!(f, "{n}"),
-            Literal::True => write!(f, "True"),
-            Literal::False => write!(f, "False"),
-            Literal::Nil => write!(f, "Nil"),
+            TokenType::Str(s) => write!(f, "\"{}\"", s),
+            TokenType::Num(n) => write!(f, "{}", n),
+            TokenType::True => write!(f, "true"),
+            TokenType::False => write!(f, "false"),
+            TokenType::Nil => write!(f, "nil"),
+            _ => write!(f, "{:?}", self),
         }
     }
 }
@@ -113,7 +100,6 @@ impl fmt::Display for Literal {
 pub struct Token {
     pub ty: TokenType,
     pub lexeme: String,
-    pub literal: Option<Literal>,
     pub line: usize,
     pub col: i64,
 }

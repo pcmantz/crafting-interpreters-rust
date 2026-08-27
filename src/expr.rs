@@ -5,6 +5,7 @@
 use crate::prelude::*;
 
 use crate::token::*;
+use crate::value::*;
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -15,7 +16,7 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn literal(value: Literal) -> Expr {
+    pub fn literal(value: Value) -> Expr {
         Expr::Literal(LiteralExpr { value })
     }
 
@@ -43,7 +44,7 @@ impl Expr {
 
 #[derive(Debug, Clone)]
 pub struct LiteralExpr {
-    pub value: Literal,
+    pub value: Value,
 }
 
 #[derive(Debug, Clone)]
