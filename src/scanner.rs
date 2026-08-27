@@ -28,8 +28,8 @@ pub struct Scanner {
 }
 
 impl Default for Scanner {
-    fn default() -> Scanner {
-        Scanner {
+    fn default() -> Self {
+        Self {
             source: Vec::new(),
             tokens: Vec::new(),
             err: None,
