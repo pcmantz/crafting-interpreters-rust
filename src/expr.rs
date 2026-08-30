@@ -55,6 +55,19 @@ impl Expr {
             expression: Box::new(expr),
         })
     }
+
+    pub fn variable(name: Token) -> Expr {
+        Expr::Variable(VariableExpr {
+            name,
+        })
+    }
+
+    pub fn assign(name: Token, expr: Expr) -> Expr {
+        Expr::Assign(AssignExpr {
+            name,
+            expression: Box::new(expr)
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -82,10 +95,11 @@ pub struct GroupingExpr {
 
 #[derive(Debug, Clone)]
 pub struct VariableExpr {
-    pub expression: Box<Expr>,
+    pub name: Token,
 }
 
 #[derive(Debug, Clone)]
 pub struct AssignExpr {
+    pub name: Token,
     pub expression: Box<Expr>,
 }

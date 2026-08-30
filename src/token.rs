@@ -109,3 +109,12 @@ impl fmt::Display for Token {
         write!(f, "{}({})", self.ty, self.lexeme)
     }
 }
+
+impl Token {
+    pub fn identifier(&self) -> Option<&String> {
+        match &self.ty {
+            TokenType::Identifier(name) => Some(name),
+            _ => None,
+        }
+    }
+}

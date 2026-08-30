@@ -92,3 +92,15 @@ impl Error {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct ParseErrors(pub Vec<Error>);
+
+impl fmt::Display for ParseErrors {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0.iter().join("\n"))
+    }
+}
+
+
+impl std::error::Error for ParseErrors {}

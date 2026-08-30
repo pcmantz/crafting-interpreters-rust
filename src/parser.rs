@@ -10,8 +10,8 @@ use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
-pub fn parse(tokens: Vec<Token>) -> Result<Expr, Error> {
-    let mut parser = Parser::default();
+pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseErrors> {
+    let parser = Parser::default();
 
     parser.parse(tokens)
 }
@@ -20,6 +20,7 @@ pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
     statements: Vec<Stmt>,
+    errors: Vec<Error>,
 }
 
 impl Default for Parser {
@@ -28,6 +29,7 @@ impl Default for Parser {
             tokens: Vec::new(),
             current: 0,
             statements: Vec::new(),
+            errors: Vec::new(),
         }
     }
 }
@@ -35,14 +37,54 @@ impl Default for Parser {
 impl Parser {
     /* Patterns */
 
-    fn parse(&mut self, tokens: Vec<Token>) -> Result<Vec<Stmt>, Error> {
+    fn parse(mut self, tokens: Vec<Token>) -> Result<Program, ParseErrors> {
         self.tokens = tokens;
 
         while !self.is_at_end() {
-            self.statements.push(self.statement()?);
+            match self.declaration() {
+                Ok(decl) => self.statements.push(decl),
+                Err(err) => self.errors.push(err),
+            }
         }
 
-        self.statements
+        if self.errors.is_empty() {
+            Ok(Program(self.statements))
+        } else {
+            Err(ParseErrors(self.errors))
+        }
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, Error> {
+        if self.matches(vec![TokenType::Var]) {
+            match self.var_declaration() {
+                Ok(stmt) => Ok(stmt),
+                Err(e) => {
+                    self.synchronize();
+                    Err(e)
+                }
+            }
+        } else {
+            match self.statement() {
+                Ok(stmt) => Ok(stmt),
+                Err(e) => {
+                    self.synchronize();
+                    Err(e)
+                }
+            }
+        }
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, Error> {
+        let name = self.consume_identifier()?;
+
+        let initializer = if self.matches(vec![TokenType::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(TokenType::Semicolon)?;
+        Ok(Stmt::var(name, initializer))
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
@@ -54,15 +96,15 @@ impl Parser {
     }
 
     fn print_statement(&mut self) -> Result<Stmt, Error> {
-        let value = self.expression();
-        self.consume(TokenType::Semicolon);
+        let value = self.expression()?;
+        self.consume(TokenType::Semicolon)?;
 
         Ok(Stmt::print(value))
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, Error> {
-        let expr = self.expression();
-        self.consume(TokenType::Semicolon);
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon)?;
 
         Ok(Stmt::expression(expr))
     }
@@ -76,7 +118,7 @@ impl Parser {
     fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr: Expr = self.comparison()?;
 
-        while self.matches(vec![TokenType::Equal, TokenType::BangEqual]) {
+        while self.matches(vec![TokenType::EqualEqual, TokenType::BangEqual]) {
             let operator = self.previous().clone();
             let right = self.comparison()?;
 
@@ -152,6 +194,8 @@ impl Parser {
                 Ok(Expr::grouping(expr))
             }
 
+            TokenType::Identifier(_) => Ok(Expr::variable(token.clone())),
+
             /* NOTE: This tries to pull a value, otherwise it errors. May have to
              * explode into match later.
              */
@@ -168,6 +212,17 @@ impl Parser {
             Ok(self.advance().clone())
         } else {
             Err(Error::wrong_token(ty, self.peek()))
+        }
+    }
+
+    fn consume_identifier(&mut self) -> Result<Token, Error> {
+        if matches!(self.peek().ty, TokenType::Identifier(_)) {
+            Ok(self.advance().clone())
+        } else {
+            Err(Error::wrong_token(
+                TokenType::Identifier(String::new()),
+                self.peek(),
+            ))
         }
     }
 
@@ -257,22 +312,22 @@ mod tests {
 
     #[test]
     fn parse_number() {
-        assert_eq!(sexpr("123"), "123")
+        assert_eq!(sexpr("123;"), "123")
     }
 
     #[test]
     fn parse_true() {
-        assert_eq!(sexpr("true"), "true")
+        assert_eq!(sexpr("true;"), "true")
     }
 
     #[test]
     fn parse_false() {
-        assert_eq!(sexpr("false"), "false")
+        assert_eq!(sexpr("false;"), "false")
     }
 
     #[test]
     fn parse_nil() {
-        assert_eq!(sexpr("nil"), "nil")
+        assert_eq!(sexpr("nil;"), "nil")
     }
 
     // #[test]
@@ -282,36 +337,36 @@ mod tests {
 
     #[test]
     fn parse_addition() {
-        assert_eq!(sexpr("1 + 2"), "(+ 1 2)")
+        assert_eq!(sexpr("1 + 2;"), "(+ 1 2)")
     }
 
     #[test]
     fn parse_division() {
-        assert_eq!(sexpr("1 / 2"), "(/ 1 2)")
+        assert_eq!(sexpr("1 / 2;"), "(/ 1 2)")
     }
 
     #[test]
     fn parse_comparison() {
-        assert_eq!(sexpr("3 < 5"), "(< 3 5)")
+        assert_eq!(sexpr("3 < 5;"), "(< 3 5)")
     }
 
     #[test]
     fn parse_equality() {
-        assert_eq!(sexpr("100 = 100"), "(= 100 100)")
+        assert_eq!(sexpr("100 == 100;"), "(== 100 100)")
     }
 
     #[test]
     fn parse_negation() {
-        assert_eq!(sexpr("-32"), "(- 32)")
+        assert_eq!(sexpr("-32;"), "(- 32)")
     }
 
     #[test]
     fn parse_grouping() {
-        assert_eq!(sexpr("1 / (2 + 3)"), "(/ 1 (group (+ 2 3)))")
+        assert_eq!(sexpr("1 / (2 + 3);"), "(/ 1 (group (+ 2 3)))")
     }
 
     #[test]
     fn parse_mult_addition_ordering() {
-        assert_eq!(sexpr("1 / (2 + 3)"), "(/ 1 (group (+ 2 3)))")
+        assert_eq!(sexpr("1 / (2 + 3);"), "(/ 1 (group (+ 2 3)))")
     }
 }
