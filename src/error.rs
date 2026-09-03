@@ -29,6 +29,8 @@ pub enum ErrorKind {
         token: Token,
         message: String,
     },
+    InvalidAssignment {
+    }
 }
 
 impl fmt::Display for Error {
@@ -43,6 +45,7 @@ impl fmt::Display for Error {
                 write!(f, "{}", message)
             }
             ErrorKind::Runtime { message, .. } => write!(f, "{}", message),
+            ErrorKind::InvalidAssignment { ..} => write!(f, "Invalid assignment.")
         }
     }
 }
@@ -87,6 +90,14 @@ impl Error {
                 token: token.clone(),
                 message: message.into(),
             },
+            line: token.line,
+            col: token.col,
+        }
+    }
+
+    pub fn invalid_assignment(token: &Token) -> Error {
+        Error {
+            kind: ErrorKind::InvalidAssignment {},
             line: token.line,
             col: token.col,
         }

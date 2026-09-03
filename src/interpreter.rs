@@ -4,18 +4,16 @@
 
 use crate::prelude::*;
 
+use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
 use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
-pub struct Interpreter {}
-
-impl Default for Interpreter {
-    fn default() -> Self {
-        Self {}
-    }
+#[derive(Default, Debug)]
+pub struct Interpreter {
+    environment: Environment,
 }
 
 impl Interpreter {
@@ -37,7 +35,7 @@ impl Interpreter {
         match stmt {
             Stmt::Print(stmt) => self.print_statement(stmt),
             Stmt::Expression(stmt) => self.evaluate(&stmt.expression),
-            Stmt::Var(stmt) => todo!(),
+            Stmt::Var(stmt) => self.var_statement(stmt),
         }
     }
 
@@ -47,15 +45,32 @@ impl Interpreter {
         Ok(Value::Nil)
     }
 
+    fn var_statement(&mut self, stmt: &VarStmt) -> Result<Value, Error> {
+        let value = match &stmt.initializer {
+            Some(init) => self.evaluate(init)?,
+            None => Value::Nil,
+        };
+
+        self.environment.define(&stmt.name, value);
+
+        Ok(Value::Nil)
+    }
+
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, Error> {
         match expr {
             Expr::Literal(e) => Ok(e.value.clone()),
-            Expr::Variable(e) => todo!(),
-            Expr::Assign(e) => todo!(),
+            Expr::Variable(e) => self.environment.get(&e.name),
+            Expr::Assign(e) => self.eval_assign(e),
             Expr::Unary(e) => self.eval_unary(e),
             Expr::Binary(e) => self.eval_binary(e),
             Expr::Grouping(e) => self.evaluate(&e.expression),
         }
+    }
+
+    fn eval_assign(&mut self, expr: &AssignExpr) -> Result<Value, Error> {
+        let value = self.evaluate(&expr.expression)?;
+
+        self.environment.assign(&expr.name, value)
     }
 
     fn eval_unary(&mut self, expr: &UnaryExpr) -> Result<Value, Error> {

@@ -15,7 +15,7 @@ pub mod token;
 pub mod value;
 
 /* logic */
-// pub mod interpreter;
+pub mod environment;
 pub mod parser;
 pub mod scanner;
 pub mod interpreter;
