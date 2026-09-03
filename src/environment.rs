@@ -26,11 +26,12 @@ impl Environment {
     }
 
     pub fn assign(&mut self, name: &Token, value: Value) -> Result<Value, Error> {
-        if !self.values.contains_key(&name.lexeme) {
-            return Err(Error::runtime(name, format!("Undefined variable '{}'.", name.lexeme)))
-        }
+        if let Some(value_ref) = self.values.get_mut(&name.lexeme) {
+            *value_ref = value.clone();
 
-        self.values.insert(name.lexeme.clone(), value.clone());
-        Ok(value)
+            Ok(value)
+        } else {
+            Err(Error::runtime(name, format!("Undefined variable '{}'.", name.lexeme)))
+        }
     }
 }
