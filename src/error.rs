@@ -29,8 +29,7 @@ pub enum ErrorKind {
         token: Token,
         message: String,
     },
-    InvalidAssignment {
-    }
+    InvalidAssignment {},
 }
 
 impl fmt::Display for Error {
@@ -45,7 +44,7 @@ impl fmt::Display for Error {
                 write!(f, "{}", message)
             }
             ErrorKind::Runtime { message, .. } => write!(f, "{}", message),
-            ErrorKind::InvalidAssignment { ..} => write!(f, "Invalid assignment.")
+            ErrorKind::InvalidAssignment { .. } => write!(f, "Invalid assignment."),
         }
     }
 }
@@ -112,6 +111,5 @@ impl fmt::Display for ParseErrors {
         write!(f, "{}", self.0.iter().join("\n"))
     }
 }
-
 
 impl std::error::Error for ParseErrors {}

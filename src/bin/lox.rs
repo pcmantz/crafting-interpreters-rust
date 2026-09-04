@@ -28,7 +28,6 @@ impl Lox {
         } else {
             self.run_prompt()
         }
-
     }
 
     fn run_file(&mut self, file: PathBuf) -> Result<()> {
@@ -47,11 +46,13 @@ impl Lox {
 
             let mut input = String::new();
             let n = io::stdin().read_line(&mut input)?;
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
 
             match self.run_code(input.trim_end().to_string()) {
                 Ok(value) => println!("{value}"),
-                Err(report) => eprintln!("{report:?}")
+                Err(report) => eprintln!("{report:?}"),
             }
         }
 

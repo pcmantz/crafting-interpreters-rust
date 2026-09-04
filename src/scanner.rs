@@ -359,7 +359,10 @@ mod test {
 
     #[test]
     fn literal_identifier() {
-        assert_eq!(types("identifier"), vec![Identifier(String::from("identifier")), EOF])
+        assert_eq!(
+            types("identifier"),
+            vec![Identifier(String::from("identifier")), EOF]
+        )
     }
 
     #[test]
@@ -374,7 +377,10 @@ mod test {
 
     #[test]
     fn scan_addition() {
-        assert_eq!(types("1 + 2"), vec![Num(1 as f64), Plus, Num(2 as f64), EOF])
+        assert_eq!(
+            types("1 + 2"),
+            vec![Num(1 as f64), Plus, Num(2 as f64), EOF]
+        )
     }
 
     #[test]

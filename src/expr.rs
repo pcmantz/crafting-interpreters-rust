@@ -57,15 +57,13 @@ impl Expr {
     }
 
     pub fn variable(name: Token) -> Expr {
-        Expr::Variable(VariableExpr {
-            name,
-        })
+        Expr::Variable(VariableExpr { name })
     }
 
     pub fn assign(name: Token, expr: Expr) -> Expr {
         Expr::Assign(AssignExpr {
             name,
-            expression: Box::new(expr)
+            expression: Box::new(expr),
         })
     }
 }

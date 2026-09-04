@@ -16,11 +16,11 @@ pub mod value;
 
 /* logic */
 pub mod environment;
+pub mod interpreter;
 pub mod parser;
 pub mod scanner;
-pub mod interpreter;
 
 pub use error::Error;
 pub use interpreter::Interpreter;
-pub use value::Value;
 pub use stmt::Program;
+pub use value::Value;
