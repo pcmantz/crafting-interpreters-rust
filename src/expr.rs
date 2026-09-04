@@ -24,8 +24,8 @@ impl fmt::Display for Expr {
             Expr::Unary(e) => write!(f, "({} {})", e.operator.lexeme, e.right),
             Expr::Binary(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
             Expr::Grouping(e) => write!(f, "(group {})", e.expression),
-            Expr::Variable(e) => todo!(),
-            Expr::Assign(e) => todo!(),
+            Expr::Variable(e) => write!(f, "{}", e.name),
+            Expr::Assign(e) => write!(f, "(= {} {})", e.name, e.expression),
         }
     }
 }

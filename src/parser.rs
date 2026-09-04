@@ -348,10 +348,10 @@ mod tests {
         assert_eq!(sexpr("nil;"), "nil")
     }
 
-    // #[test]
-    // fn parse_identifer() {
-    //     assert_eq!(sexpr("identifier"), "identifier")
-    // }
+    #[test]
+    fn parse_identifier() {
+        assert_eq!(sexpr("identifier;"), "Identifier(\"identifier\")")
+    }
 
     #[test]
     fn parse_addition() {
@@ -386,5 +386,20 @@ mod tests {
     #[test]
     fn parse_mult_addition_ordering() {
         assert_eq!(sexpr("1 / (2 + 3);"), "(/ 1 (group (+ 2 3)))")
+    }
+
+    #[test]
+    fn parse_var_decl() {
+        assert_eq!(sexpr("var a;"), "(var a)")
+    }
+
+    #[test]
+    fn parse_var_decl_assign() {
+        assert_eq!(sexpr("var a = 5;"), "(var a 5)")
+    }
+
+    #[test]
+    fn parse_assignment_expr() {
+        assert_eq!(sexpr("a = 5;"), "(= Identifier(\"a\") 5)")
     }
 }
