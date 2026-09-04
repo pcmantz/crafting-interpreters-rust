@@ -18,3 +18,11 @@ run = "cargo test"
 [tasks.coverage]
 description = "generate test coverage report"
 run = "cargo tarpaulin"
+
+[tasks.lox]
+description = "run the lox binary"
+run = "cargo run --bin lox"
+
+[tasks.lox-ast]
+description = "run the lox binary"
+run = "cargo run --bin lox-ast"
