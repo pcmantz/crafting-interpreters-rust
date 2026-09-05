@@ -18,7 +18,6 @@ struct Cli {
 
 #[derive(Default)]
 struct Lox {
-    interpreter: Interpreter,
 }
 
 impl Lox {
@@ -32,13 +31,16 @@ impl Lox {
 
     fn run_file(&mut self, file: PathBuf) -> Result<()> {
         let code = std::fs::read_to_string(&file)?;
-        self.run_code(code)?;
+        let mut env = Environment::default();
+        self.run_code(&mut env, code)?;
 
         Ok(())
     }
 
     fn run_prompt(&mut self) -> Result<()> {
         std::io::stdout().flush().expect("Oops");
+
+        let mut env = Environment::default();
 
         loop {
             print!("❯ ");
@@ -50,7 +52,7 @@ impl Lox {
                 break;
             }
 
-            match self.run_code(input.trim_end().to_string()) {
+            match self.run_code(&mut env, input.trim_end().to_string()) {
                 Ok(value) => println!("{value}"),
                 Err(report) => eprintln!("{report:?}"),
             }
@@ -59,11 +61,11 @@ impl Lox {
         Ok(())
     }
 
-    fn run_code(&mut self, code: String) -> color_eyre::Result<Value> {
+    fn run_code(&mut self, env: &mut Environment, code: String) -> color_eyre::Result<Value> {
         let tokens = scanner::scan(code)?;
         let statements = parser::parse(tokens)?;
 
-        Ok(self.interpreter.run(statements)?)
+        Ok(interpreter::run(env, statements)?)
     }
 }
 
