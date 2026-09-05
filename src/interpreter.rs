@@ -36,6 +36,7 @@ impl Interpreter {
             Stmt::Print(stmt) => self.print_statement(stmt),
             Stmt::Expression(stmt) => self.evaluate(&stmt.expression),
             Stmt::Var(stmt) => self.var_statement(stmt),
+            Stmt::Block(stmt) => todo!(),
         }
     }
 

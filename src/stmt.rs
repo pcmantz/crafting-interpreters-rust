@@ -39,17 +39,19 @@ pub enum Stmt {
     Expression(ExpressionStmt),
     Print(PrintStmt),
     Var(VarStmt),
+    Block(BlockStmt),
 }
 
 impl fmt::Display for Stmt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Stmt::Expression(s) => write!(f, "{}", &s.expression),
+            Stmt::Expression(s) => write!(f, "(expr {})", &s.expression),
             Stmt::Print(s) => write!(f, "(print {})", &s.expression),
             Stmt::Var(s) => match &s.initializer {
                 Some(init) => write!(f, "(var {} {})", s.name.lexeme, init),
                 None => write!(f, "(var {})", s.name.lexeme),
             },
+            Stmt::Block(b) => write!(f, "(block {})", b.statements.iter().join("\n"))
         }
     }
 }
@@ -82,4 +84,9 @@ pub struct PrintStmt {
 pub struct VarStmt {
     pub name: Token,
     pub initializer: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BlockStmt {
+    pub statements: Vec<Stmt>,
 }

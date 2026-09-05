@@ -330,62 +330,62 @@ mod tests {
 
     #[test]
     fn parse_number() {
-        assert_eq!(sexpr("123;"), "123")
+        assert_eq!(sexpr("123;"), "(expr 123)")
     }
 
     #[test]
     fn parse_true() {
-        assert_eq!(sexpr("true;"), "true")
+        assert_eq!(sexpr("true;"), "(expr true)")
     }
 
     #[test]
     fn parse_false() {
-        assert_eq!(sexpr("false;"), "false")
+        assert_eq!(sexpr("false;"), "(expr false)")
     }
 
     #[test]
     fn parse_nil() {
-        assert_eq!(sexpr("nil;"), "nil")
+        assert_eq!(sexpr("nil;"), "(expr nil)")
     }
 
     #[test]
     fn parse_identifier() {
-        assert_eq!(sexpr("identifier;"), "Identifier(\"identifier\")")
+        assert_eq!(sexpr("identifier;"), "(expr Identifier(\"identifier\"))")
     }
 
     #[test]
     fn parse_addition() {
-        assert_eq!(sexpr("1 + 2;"), "(+ 1 2)")
+        assert_eq!(sexpr("1 + 2;"), "(expr (+ 1 2))")
     }
 
     #[test]
     fn parse_division() {
-        assert_eq!(sexpr("1 / 2;"), "(/ 1 2)")
+        assert_eq!(sexpr("1 / 2;"), "(expr (/ 1 2))")
     }
 
     #[test]
     fn parse_comparison() {
-        assert_eq!(sexpr("3 < 5;"), "(< 3 5)")
+        assert_eq!(sexpr("3 < 5;"), "(expr (< 3 5))")
     }
 
     #[test]
     fn parse_equality() {
-        assert_eq!(sexpr("100 == 100;"), "(== 100 100)")
+        assert_eq!(sexpr("100 == 100;"), "(expr (== 100 100))")
     }
 
     #[test]
     fn parse_negation() {
-        assert_eq!(sexpr("-32;"), "(- 32)")
+        assert_eq!(sexpr("-32;"), "(expr (- 32))")
     }
 
     #[test]
     fn parse_grouping() {
-        assert_eq!(sexpr("1 / (2 + 3);"), "(/ 1 (group (+ 2 3)))")
+        assert_eq!(sexpr("1 / (2 + 3);"), "(expr (/ 1 (group (+ 2 3))))")
     }
 
     #[test]
     fn parse_mult_addition_ordering() {
-        assert_eq!(sexpr("1 / (2 + 3);"), "(/ 1 (group (+ 2 3)))")
+        assert_eq!(sexpr("1 / (2 + 3);"), "(expr (/ 1 (group (+ 2 3))))")
     }
 
     #[test]
@@ -400,6 +400,6 @@ mod tests {
 
     #[test]
     fn parse_assignment_expr() {
-        assert_eq!(sexpr("a = 5;"), "(= Identifier(\"a\") 5)")
+        assert_eq!(sexpr("a = 5;"), "(expr (= Identifier(\"a\") 5))")
     }
 }
