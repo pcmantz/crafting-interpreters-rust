@@ -57,6 +57,10 @@ impl Interpreter {
         Ok(Value::Nil)
     }
 
+    fn block_statement(&mut self, stmt: &BlockStmt) -> Result<Value, Error> {
+        todo!()
+    }
+
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, Error> {
         match expr {
             Expr::Literal(e) => Ok(e.value.clone()),

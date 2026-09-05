@@ -20,12 +20,9 @@ impl LoxAst {
     fn run(self) -> Result<()> {
         let code = std::fs::read_to_string(self.file)?;
         let tokens = scanner::scan(code)?;
-
-        println!("TOKENS: {}", tokens.iter().join(", "));
-
         let ast = parser::parse(tokens.clone())?;
 
-        println!("AST: {}", ast);
+        println!("{}", ast);
 
         Ok(())
     }

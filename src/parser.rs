@@ -402,4 +402,9 @@ mod tests {
     fn parse_assignment_expr() {
         assert_eq!(sexpr("a = 5;"), "(expr (= Identifier(\"a\") 5))")
     }
+
+    #[test]
+    fn parse_multiple_statements() {
+        assert_eq!(sexpr("1; 2;"), "(expr 1)(expr 2)")
+    }
 }

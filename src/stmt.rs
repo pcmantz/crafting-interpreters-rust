@@ -12,7 +12,7 @@ pub struct Program(pub Vec<Stmt>);
 
 impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.iter().join("\n"))
+        write!(f, "{}", self.0.iter().join(""))
     }
 }
 
@@ -51,7 +51,7 @@ impl fmt::Display for Stmt {
                 Some(init) => write!(f, "(var {} {})", s.name.lexeme, init),
                 None => write!(f, "(var {})", s.name.lexeme),
             },
-            Stmt::Block(b) => write!(f, "(block {})", b.statements.iter().join("\n"))
+            Stmt::Block(b) => write!(f, "(block {})", b.statements.iter().join(""))
         }
     }
 }
