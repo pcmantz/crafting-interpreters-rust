@@ -395,4 +395,23 @@ mod test {
 
     // #[test]
     fn hello_world() {}
+
+    #[test]
+    fn scan_block() {
+        assert_eq!(
+            types("{ var b = 3; b; }"),
+            vec![
+                LeftBrace,
+                Var,
+                Identifier(String::from("b")),
+                Equal,
+                Num(3 as f64),
+                Semicolon,
+                Identifier(String::from("b")),
+                Semicolon,
+                RightBrace,
+                EOF
+            ]
+        )
+    }
 }

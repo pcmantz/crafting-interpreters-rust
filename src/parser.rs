@@ -90,6 +90,10 @@ impl Parser {
     fn statement(&mut self) -> Result<Stmt, Error> {
         if self.matches(vec![TokenType::Print]) {
             self.print_statement()
+
+        } else if self.matches(vec![TokenType::LeftBrace]) {
+            self.block_statement()
+
         } else {
             self.expression_statement()
         }
@@ -100,6 +104,19 @@ impl Parser {
         self.consume(TokenType::Semicolon)?;
 
         Ok(Stmt::print(value))
+    }
+
+    fn block_statement(&mut self) -> Result<Stmt, Error> {
+        let mut statements: Vec<Stmt> = Vec::new();
+
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            let decl = self.declaration()?;
+            statements.push(decl);
+        }
+
+        self.consume(TokenType::RightBrace)?;
+
+        Ok(Stmt::block(statements))
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, Error> {
@@ -406,5 +423,10 @@ mod tests {
     #[test]
     fn parse_multiple_statements() {
         assert_eq!(sexpr("1; 2;"), "(expr 1)(expr 2)")
+    }
+
+    #[test]
+    fn parse_block_statement() {
+        assert_eq!(sexpr("{ var a; a = 1; }"), r#"(block (var a)(expr (= Identifier("a") 1)))"#)
     }
 }

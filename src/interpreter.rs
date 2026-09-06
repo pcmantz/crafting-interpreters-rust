@@ -30,7 +30,7 @@ fn execute(mut env: &mut Environment, stmt: &Stmt) -> Result<Value, Error> {
         Stmt::Print(stmt) => print_statement(&mut env, stmt),
         Stmt::Expression(stmt) => evaluate(&mut env, &stmt.expression),
         Stmt::Var(stmt) => var_statement(&mut env, stmt),
-        Stmt::Block(stmt) => todo!(),
+        Stmt::Block(stmt) => block_statement(&mut env, stmt),
     }
 }
 
@@ -52,7 +52,15 @@ fn var_statement(env: &mut Environment, stmt: &VarStmt) -> Result<Value, Error> 
 }
 
 fn block_statement(env: &mut Environment, stmt: &BlockStmt) -> Result<Value, Error> {
-    todo!()
+    let mut block_env = Environment::with_enclosing(env.clone());
+
+    /* TODO: Figure out how to re-use run()  */
+    let mut res = Value::Nil;
+    for statement in &stmt.statements {
+        res = interpret(&mut block_env, statement)?;
+    }
+
+    Ok(res)
 }
 
 fn evaluate(env: &mut Environment, expr: &Expr) -> Result<Value, Error> {
@@ -268,6 +276,21 @@ a;
 "#
             ),
             Value::Num(3.0)
+        );
+    }
+
+    #[test]
+    fn interpret_block() {
+        assert_eq!(
+            eval(
+                r#"
+{
+    var b = 2;
+    b;
+}
+"#
+            ),
+            Value::Num(2.0)
         );
     }
 }

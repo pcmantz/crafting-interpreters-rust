@@ -11,3 +11,7 @@ itertools = "0.15.0"
 [[bin]]
 name = "lox-ast"
 path = "src/bin/lox_ast.rs"
+
+[[bin]]
+name = "lox-scan"
+path = "src/bin/lox_scan.rs"

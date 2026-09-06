@@ -68,6 +68,10 @@ impl Stmt {
     pub fn var(name: Token, initializer: Option<Expr>) -> Stmt {
         Stmt::Var(VarStmt { name, initializer })
     }
+
+    pub fn block(statements: Vec<Stmt>) -> Stmt {
+        Stmt::Block(BlockStmt { statements, })
+    }
 }
 
 #[derive(Debug, Clone)]
