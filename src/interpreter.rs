@@ -21,7 +21,7 @@ pub fn run(env: &mut Environment, program: Program) -> Result<Value, Error> {
     Ok(res)
 }
 
-pub fn interpret(env: &mut Environment, statement: Stmt) -> Result<Value, Error> {
+pub fn interpret(env: &mut Environment, statement: &Stmt) -> Result<Value, Error> {
     execute(env, &statement)
 }
 
@@ -157,5 +157,117 @@ fn is_equal(left: &Value, right: &Value) -> bool {
         (Value::Nil, Value::Nil) => true,
         (Value::Nil, _) => false,
         (a, b) => a == b,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parser;
+    use crate::scanner;
+
+    use crate::environment::Environment;
+
+    use super::*;
+
+    fn run_result(src: &str) -> Result<Value, Error> {
+        let tokens =
+            scanner::scan(src.to_string()).unwrap_or_else(|e| panic!("scanning failed:\n{e}"));
+        let statements = parser::parse(tokens).unwrap_or_else(|e| panic!("parsing failed:\n{e}"));
+        let mut env = Environment::default();
+
+        run(&mut env, statements)
+    }
+
+    fn eval(src: &str) -> Value {
+        run_result(src).unwrap_or_else(|e| panic!("interpreting_failed:\n{e}"))
+    }
+
+    fn eval_err(src: &str) -> String {
+        run_result(src)
+            .expect_err("expected a runtime error")
+            .to_string()
+    }
+
+    #[test]
+    fn interpret_arithmetic() {
+        assert_eq!(eval("2 + 3 + 5;"), Value::Num(10.0));
+    }
+
+    #[test]
+    fn interpret_grouping() {
+        assert_eq!(eval("(2 + 3) * 5;"), Value::Num(25.0));
+    }
+
+    #[test]
+    fn interpret_string_concatenation() {
+        assert_eq!(eval(r#""foo" + "bar";"#), Value::Str("foobar".to_string()));
+    }
+
+    #[test]
+    fn inteJKIgrpret_mixed_operand_addition_error() {
+        assert!(eval_err(r#"5 + "foo";"#).contains("Operands must be numbers."));
+    }
+
+    #[test]
+    fn interpret_nil_comparison() {
+        assert_eq!(eval(r#"nil == false;"#), Value::Bool(false));
+        assert_eq!(eval(r#"nil == nil;"#), Value::Bool(true));
+    }
+
+    #[test]
+    fn interpret_numeric_comparison() {
+        assert_eq!(eval(r#"5 <= 3;"#), Value::Bool(false));
+        assert_eq!(eval(r#"8 == 8;"#), Value::Bool(true));
+    }
+
+    #[test]
+    fn interpret_eq() {
+        assert_eq!(eval(r#"5 == 5;"#), Value::Bool(true));
+        assert_eq!(eval(r#"5 == 3;"#), Value::Bool(false));
+
+        assert_eq!(eval(r#""foo" == "foo";"#), Value::Bool(true));
+        assert_eq!(eval(r#""foo" == "bar";"#), Value::Bool(false));
+    }
+
+    #[test]
+    fn interpret_neq() {
+        assert_eq!(eval(r#"3 != 5;"#), Value::Bool(true));
+        assert_eq!(eval(r#"5 != 5;"#), Value::Bool(false));
+        assert_eq!(eval(r#"5 != 3;"#), Value::Bool(true));
+
+        assert_eq!(eval(r#""foo" != "foo";"#), Value::Bool(false));
+        assert_eq!(eval(r#""foo" != "bar";"#), Value::Bool(true));
+    }
+
+    #[test]
+    fn interpret_leq() {
+        assert_eq!(eval(r#"3 <= 5;"#), Value::Bool(true));
+        assert_eq!(eval(r#"5 <= 5;"#), Value::Bool(true));
+        assert_eq!(eval(r#"5 <= 3;"#), Value::Bool(false));
+    }
+
+    #[test]
+    fn interpret_geq() {
+        assert_eq!(eval(r#"3 >= 5;"#), Value::Bool(false));
+        assert_eq!(eval(r#"5 >= 5;"#), Value::Bool(true));
+        assert_eq!(eval(r#"5 >= 3;"#), Value::Bool(true));
+    }
+
+    #[test]
+    fn interpret_assignment() {
+        assert_eq!(eval(r#"var a = 3;"#), Value::Nil);
+    }
+
+    #[test]
+    fn interpret_var_expr() {
+        assert_eq!(
+            eval(
+                r#"
+var a = 3;
+a;
+"#
+            ),
+            Value::Num(3.0)
+        );
     }
 }
