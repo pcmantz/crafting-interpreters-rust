@@ -10,6 +10,7 @@ use crate::value::*;
 #[derive(Debug, Clone)]
 pub enum Expr {
     Literal(LiteralExpr),
+    Logical(LogicalExpr),
     Variable(VariableExpr),
     Assign(AssignExpr),
     Unary(UnaryExpr),
@@ -21,6 +22,7 @@ impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expr::Literal(e) => write!(f, "{}", e.value),
+            Expr::Logical(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
             Expr::Unary(e) => write!(f, "({} {})", e.operator.lexeme, e.right),
             Expr::Binary(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
             Expr::Grouping(e) => write!(f, "(group {})", e.expression),
@@ -33,6 +35,14 @@ impl fmt::Display for Expr {
 impl Expr {
     pub fn literal(value: Value) -> Expr {
         Expr::Literal(LiteralExpr { value })
+    }
+
+    pub fn logical(left: Expr, operator: Token, right: Expr) -> Expr {
+        Expr::Logical(LogicalExpr {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        })
     }
 
     pub fn unary(operator: Token, expr: Expr) -> Expr {
@@ -71,6 +81,13 @@ impl Expr {
 #[derive(Debug, Clone)]
 pub struct LiteralExpr {
     pub value: Value,
+}
+
+#[derive(Debug, Clone)]
+pub struct LogicalExpr {
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 
 #[derive(Debug, Clone)]

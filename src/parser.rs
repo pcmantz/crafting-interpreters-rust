@@ -146,7 +146,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, Error> {
-        let expr = self.equality()?;
+        let expr = self.logic_or()?;
 
         if self.matches(vec![TokenType::Equal]) {
             let _equals = self.previous(); /* don't really need */
@@ -163,6 +163,32 @@ impl Parser {
         } else {
             Ok(expr)
         }
+    }
+
+    fn logic_or(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.logic_and()?;
+
+        while self.matches(vec![TokenType::Or]) {
+            let operator = self.previous().clone();
+            let right = self.logic_and()?;
+
+            expr = Expr::logical(expr, operator, right);
+        }
+
+        Ok(expr)
+    }
+
+    fn logic_and(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.equality()?;
+
+        while self.matches(vec![TokenType::And]) {
+            let operator = self.previous().clone();
+            let right = self.logic_and()?;
+
+            expr = Expr::logical(expr, operator, right);
+        }
+
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, Error> {
@@ -466,9 +492,17 @@ mod tests {
 
     #[test]
     fn parse_if_statement() {
-        assert_eq!(
-            sexpr("if (true) 1; else 0;"),
-            "(if true (expr 1) (expr 0))"
-        )
+        assert_eq!(sexpr("if (true) 1; else 0;"), "(if true (expr 1) (expr 0))")
     }
+
+    #[test]
+    fn parse_logical_and() {
+        assert_eq!(sexpr("1 and 2;"), "(expr (and 1 2))")
+    }
+
+    #[test]
+    fn parse_logical_or() {
+        assert_eq!(sexpr("1 or 2;"), "(expr (or 1 2))")
+    }
+
 }

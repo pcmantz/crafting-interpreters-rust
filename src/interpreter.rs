@@ -22,16 +22,16 @@ pub fn run(env: &mut Environment, program: Program) -> Result<Value, Error> {
 }
 
 pub fn interpret(env: &mut Environment, statement: &Stmt) -> Result<Value, Error> {
-    execute(env, &statement)
+    execute(env, statement)
 }
 
-fn execute(mut env: &mut Environment, stmt: &Stmt) -> Result<Value, Error> {
+fn execute(env: &mut Environment, stmt: &Stmt) -> Result<Value, Error> {
     match stmt {
-        Stmt::Print(stmt) => print_statement(&mut env, stmt),
-        Stmt::Expression(stmt) => evaluate(&mut env, &stmt.expression),
-        Stmt::Var(stmt) => var_statement(&mut env, stmt),
-        Stmt::Block(stmt) => block_statement(&mut env, stmt),
-        Stmt::If(stmt) => if_statement(&mut env, stmt),
+        Stmt::Print(stmt) => print_statement(env, stmt),
+        Stmt::Expression(stmt) => evaluate(env, &stmt.expression),
+        Stmt::Var(stmt) => var_statement(env, stmt),
+        Stmt::Block(stmt) => block_statement(env, stmt),
+        Stmt::If(stmt) => if_statement(env, stmt),
     }
 }
 
@@ -68,24 +68,46 @@ fn if_statement(env: &mut Environment, stmt: &IfStmt) -> Result<Value, Error> {
     let val = evaluate(env, &stmt.condition)?;
 
     if is_truthy(&val) {
-        return execute(env, &stmt.then_branch);
+        execute(env, &stmt.then_branch)
     } else if let Some(else_branch) = &stmt.else_branch {
-        execute(env, &else_branch)
+        execute(env, else_branch)
     } else {
-        /* nothing runs */
-        Ok(Value::Nil)
+        Ok(Value::Nil) /* nothing runs */
     }
 }
 
 fn evaluate(env: &mut Environment, expr: &Expr) -> Result<Value, Error> {
     match expr {
         Expr::Literal(e) => Ok(e.value.clone()),
+        Expr::Logical(e) => eval_logical(env, e),
         Expr::Variable(e) => env.get(&e.name),
         Expr::Assign(e) => eval_assign(env, e),
         Expr::Unary(e) => eval_unary(env, e),
         Expr::Binary(e) => eval_binary(env, e),
         Expr::Grouping(e) => evaluate(env, &e.expression),
     }
+}
+
+fn eval_logical(env: &mut Environment, expr: &LogicalExpr) -> Result<Value, Error> {
+    let left = evaluate(env, &expr.left)?;
+
+    match expr.operator.ty {
+        TokenType::And => {
+            if !is_truthy(&left) {
+                return Ok(left);
+            }
+        }
+        TokenType::Or => {
+            if is_truthy(&left) {
+                return Ok(left);
+            }
+        }
+
+        /* TODO: Can insert NAND or XOR in here*/
+        _ => unreachable!(),
+    }
+
+    evaluate(env, &expr.right)
 }
 
 fn eval_assign(env: &mut Environment, expr: &AssignExpr) -> Result<Value, Error> {
@@ -168,10 +190,7 @@ fn as_number(right: &Value, operator: &Token) -> Result<f64, Error> {
 }
 
 fn is_truthy(val: &Value) -> bool {
-    match val {
-        Value::Bool(false) | Value::Nil => false,
-        _ => true,
-    }
+    !matches!(val, Value::Bool(false) | Value::Nil)
 }
 
 fn is_equal(left: &Value, right: &Value) -> bool {
@@ -314,5 +333,15 @@ a;
             eval(r#"if (true) "foo"; else "bar";"#),
             Value::Str(String::from("foo"))
         );
+    }
+
+    #[test]
+    fn interpret_logical_or() {
+        assert_eq!(eval(r#""hi" or 2;"#), Value::Str(String::from("hi")));
+    }
+
+    #[test]
+    fn interpret_logical_and() {
+        assert_eq!(eval(r#""hi" and 2;"#), Value::Num(2.0));
     }
 }
