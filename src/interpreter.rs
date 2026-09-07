@@ -245,7 +245,7 @@ mod tests {
     }
 
     #[test]
-    fn inteJKIgrpret_mixed_operand_addition_error() {
+    fn interpret_mixed_operand_addition_error() {
         assert!(eval_err(r#"5 + "foo";"#).contains("Operands must be numbers."));
     }
 
