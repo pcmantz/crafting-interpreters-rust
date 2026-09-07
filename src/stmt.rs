@@ -40,6 +40,7 @@ pub enum Stmt {
     Print(PrintStmt),
     Var(VarStmt),
     Block(BlockStmt),
+    If(IfStmt),
 }
 
 impl fmt::Display for Stmt {
@@ -51,7 +52,14 @@ impl fmt::Display for Stmt {
                 Some(init) => write!(f, "(var {} {})", s.name.lexeme, init),
                 None => write!(f, "(var {})", s.name.lexeme),
             },
-            Stmt::Block(b) => write!(f, "(block {})", b.statements.iter().join(""))
+            Stmt::Block(b) => write!(f, "(block {})", b.statements.iter().join("")),
+            Stmt::If(s) => {
+                write!(f, "(if {} {}", &s.condition, &s.then_branch);
+                if let Some(e) = &s.else_branch {
+                    write!(f, " {}", &e);
+                }
+                write!(f, ")")
+            },
         }
     }
 }
@@ -70,7 +78,18 @@ impl Stmt {
     }
 
     pub fn block(statements: Vec<Stmt>) -> Stmt {
-        Stmt::Block(BlockStmt { statements, })
+        Stmt::Block(BlockStmt { statements })
+    }
+
+    pub fn r#if(condition: Expr, then_branch: Stmt, else_branch: Option<Stmt>) -> Stmt {
+        Stmt::If(IfStmt {
+            condition,
+            then_branch: Box::new(then_branch),
+            else_branch: match else_branch {
+                Some(stmt) => Some(Box::new(stmt)),
+                _ => None,
+            },
+        })
     }
 }
 
@@ -93,4 +112,11 @@ pub struct VarStmt {
 #[derive(Debug, Clone)]
 pub struct BlockStmt {
     pub statements: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IfStmt {
+    pub condition: Expr,
+    pub then_branch: Box<Stmt>,
+    pub else_branch: Option<Box<Stmt>>,
 }

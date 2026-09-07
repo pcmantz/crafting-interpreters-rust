@@ -31,6 +31,7 @@ fn execute(mut env: &mut Environment, stmt: &Stmt) -> Result<Value, Error> {
         Stmt::Expression(stmt) => evaluate(&mut env, &stmt.expression),
         Stmt::Var(stmt) => var_statement(&mut env, stmt),
         Stmt::Block(stmt) => block_statement(&mut env, stmt),
+        Stmt::If(stmt) => if_statement(&mut env, stmt),
     }
 }
 
@@ -61,6 +62,19 @@ fn block_statement(env: &mut Environment, stmt: &BlockStmt) -> Result<Value, Err
     }
 
     Ok(res)
+}
+
+fn if_statement(env: &mut Environment, stmt: &IfStmt) -> Result<Value, Error> {
+    let val = evaluate(env, &stmt.condition)?;
+
+    if is_truthy(&val) {
+        return execute(env, &stmt.then_branch);
+    } else if let Some(else_branch) = &stmt.else_branch {
+        execute(env, &else_branch)
+    } else {
+        /* nothing runs */
+        Ok(Value::Nil)
+    }
 }
 
 fn evaluate(env: &mut Environment, expr: &Expr) -> Result<Value, Error> {
@@ -291,6 +305,14 @@ a;
 "#
             ),
             Value::Num(2.0)
+        );
+    }
+
+    #[test]
+    fn interpret_if() {
+        assert_eq!(
+            eval(r#"if (true) "foo"; else "bar";"#),
+            Value::Str(String::from("foo"))
         );
     }
 }

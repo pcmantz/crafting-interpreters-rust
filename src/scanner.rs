@@ -393,8 +393,13 @@ mod test {
         assert_eq!(types("/* comment */"), vec![EOF])
     }
 
-    // #[test]
-    fn hello_world() {}
+    #[test]
+    fn scan_hello_world() {
+        assert_eq!(
+            types(r#"print "Hello, World!";"#),
+            vec![Print, Str(String::from("Hello, World!")), Semicolon, EOF]
+        )
+    }
 
     #[test]
     fn scan_block() {

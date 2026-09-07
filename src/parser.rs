@@ -88,15 +88,30 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
-        if self.matches(vec![TokenType::Print]) {
+        if self.matches(vec![TokenType::If]) {
+            self.if_statement()
+        } else if self.matches(vec![TokenType::Print]) {
             self.print_statement()
-
         } else if self.matches(vec![TokenType::LeftBrace]) {
             self.block_statement()
-
         } else {
             self.expression_statement()
         }
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt, Error> {
+        let _ = self.consume(TokenType::LeftParen)?;
+        let condition = self.expression()?;
+        let _ = self.consume(TokenType::RightParen)?;
+
+        let then_branch = self.statement()?;
+        let else_branch = if self.matches(vec![TokenType::Else]) {
+            Some(self.statement()?)
+        } else {
+            None
+        };
+
+        Ok(Stmt::r#if(condition, then_branch, else_branch))
     }
 
     fn print_statement(&mut self) -> Result<Stmt, Error> {
@@ -297,12 +312,28 @@ impl Parser {
         &self.tokens[self.current]
     }
 
+    fn next(&self) -> &Token {
+        if self.is_at_end() {
+            self.peek()
+        } else {
+            &self.tokens[self.current + 1]
+        }
+    }
+
     fn advance(&mut self) -> &Token {
         if !self.is_at_end() {
             self.current += 1;
         }
 
         self.previous()
+    }
+
+    fn retreat(&mut self) -> &Token {
+        if !self.current == 0 {
+            self.current -= 1;
+        }
+
+        self.next()
     }
 
     fn matches(&mut self, tokens: Vec<TokenType>) -> bool {
@@ -427,6 +458,17 @@ mod tests {
 
     #[test]
     fn parse_block_statement() {
-        assert_eq!(sexpr("{ var a; a = 1; }"), r#"(block (var a)(expr (= Identifier("a") 1)))"#)
+        assert_eq!(
+            sexpr("{ var a; a = 1; }"),
+            r#"(block (var a)(expr (= Identifier("a") 1)))"#
+        )
+    }
+
+    #[test]
+    fn parse_if_statement() {
+        assert_eq!(
+            sexpr("if (true) 1; else 0;"),
+            "(if true (expr 1) (expr 0))"
+        )
     }
 }
