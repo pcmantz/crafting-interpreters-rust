@@ -88,7 +88,9 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
-        if self.matches(vec![TokenType::If]) {
+        if self.matches(vec![TokenType::For]) {
+            self.for_statement()
+        } else if self.matches(vec![TokenType::If]) {
             self.if_statement()
         } else if self.matches(vec![TokenType::Print]) {
             self.print_statement()
@@ -99,6 +101,63 @@ impl Parser {
         } else {
             self.expression_statement()
         }
+    }
+
+    fn for_statement(&mut self) -> Result<Stmt, Error> {
+        let _ = self.consume(TokenType::LeftParen)?;
+
+        /* Initializer*/
+        let initializer = if self.matches(vec![TokenType::Semicolon]) {
+            None
+        } else if self.matches(vec![TokenType::Var]) {
+            let decl = self.var_declaration()?;
+            Some(decl)
+        } else {
+            let expr = self.expression_statement()?;
+            Some(expr)
+        };
+
+
+        /* Condition */
+        let condition = if !self.check(&TokenType::Semicolon) {
+            let expr = self.expression()?;
+            self.consume(TokenType::Semicolon)?;
+            Some(expr)
+        } else {
+            None
+        };
+
+        /* Increment */
+        let increment = if !self.check(&TokenType::RightParen){
+            Some(Stmt::expression(self.expression()?))
+        } else {
+            None
+        };
+
+        let _ = self.consume(TokenType::RightParen)?;
+
+        /* Body */
+        let body = self.statement()?;
+
+        /* Condition is true if it isn't explicitly set */
+        let cond = match condition {
+            Some(stmt) => stmt,
+            None => Expr::literal(Value::Bool(true)),
+        };
+
+        /* If present, put the increment statement at the end of the body. */
+        let while_loop = Stmt::r#while(cond, match increment {
+            Some(incr) => Stmt::block(vec![body, incr]),
+            None => body,
+        });
+
+        /* If present, put the initializer before the while loop */
+        let for_loop = match initializer {
+            Some(init) => Stmt::block(vec![init, while_loop]),
+            None => while_loop
+        };
+
+        Ok(for_loop)
     }
 
     fn if_statement(&mut self) -> Result<Stmt, Error> {
@@ -531,4 +590,22 @@ while (a < 10) {
             "(var a 1)(while (< Identifier(\"a\") 10) (block (expr (= Identifier(\"a\") (+ Identifier(\"a\") 1)))))"
         )
     }
+
+    #[test]
+    fn parse_for_statement() {
+        assert_eq!(
+            sexpr(
+                r#"
+for (var i = 0; i < 10; i = i + 1) {
+    print i;
+}
+"#
+            ),
+            "(block (var i 0)(while (< Identifier(\"i\") 10) (block (block (print Identifier(\"i\")))(expr (= Identifier(\"i\") (+ Identifier(\"i\") 1))))))"
+        )
+    }
+
+
+
+
 }
