@@ -419,4 +419,42 @@ mod test {
             ]
         )
     }
+
+    #[test]
+    fn scan_for_statement() {
+        assert_eq!(
+            types(
+                r#"
+for (var i = 0; i < 10; i = i + 1) {
+    print i;
+}
+"#
+            ),
+            vec![
+                For,
+                LeftParen,
+                Var,
+                Identifier("i".to_string()),
+                Equal,
+                Num(0.0),
+                Semicolon,
+                Identifier("i".to_string()),
+                Less,
+                Num(10.0),
+                Semicolon,
+                Identifier("i".to_string()),
+                Equal,
+                Identifier("i".to_string()),
+                Plus,
+                Num(1.0),
+                RightParen,
+                LeftBrace,
+                Print,
+                Identifier("i".to_string()),
+                Semicolon,
+                RightBrace,
+                EOF
+            ]
+        )
+    }
 }
