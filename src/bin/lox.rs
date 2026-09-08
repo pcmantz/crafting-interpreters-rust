@@ -17,8 +17,7 @@ struct Cli {
 }
 
 #[derive(Default)]
-struct Lox {
-}
+struct Lox {}
 
 impl Lox {
     fn run(mut self, args: Cli) -> Result<()> {
@@ -31,8 +30,8 @@ impl Lox {
 
     fn run_file(&mut self, file: PathBuf) -> Result<()> {
         let code = std::fs::read_to_string(&file)?;
-        let mut env = Environment::default();
-        self.run_code(&mut env, code)?;
+        let mut env = Environment::default().into_rc();
+        self.run_code(&env, code)?;
 
         Ok(())
     }
@@ -40,7 +39,7 @@ impl Lox {
     fn run_prompt(&mut self) -> Result<()> {
         std::io::stdout().flush().expect("Oops");
 
-        let mut env = Environment::default();
+        let env = Environment::default().into_rc();
 
         loop {
             print!("❯ ");
@@ -52,7 +51,8 @@ impl Lox {
                 break;
             }
 
-            match self.run_code(&mut env, input.trim_end().to_string()) {
+            let res = self.run_code(&env, input.trim_end().to_string());
+            match res {
                 Ok(value) => println!("{value}"),
                 Err(report) => eprintln!("{report:?}"),
             }
@@ -61,11 +61,11 @@ impl Lox {
         Ok(())
     }
 
-    fn run_code(&mut self, env: &mut Environment, code: String) -> color_eyre::Result<Value> {
+    fn run_code(&mut self, env: &Env, code: String) -> color_eyre::Result<Value> {
         let tokens = scanner::scan(code)?;
         let statements = parser::parse(tokens)?;
 
-        Ok(interpreter::run(env, statements)?)
+        Ok(interpreter::run(&env, statements)?)
     }
 }
 

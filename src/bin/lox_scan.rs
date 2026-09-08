@@ -24,7 +24,6 @@ impl LoxScan {
             print!("{} ", token);
         }
 
-
         Ok(())
     }
 }

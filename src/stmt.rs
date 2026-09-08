@@ -41,6 +41,7 @@ pub enum Stmt {
     Var(VarStmt),
     Block(BlockStmt),
     If(IfStmt),
+    While(WhileStmt),
 }
 
 impl fmt::Display for Stmt {
@@ -59,7 +60,8 @@ impl fmt::Display for Stmt {
                     write!(f, " {}", &e);
                 }
                 write!(f, ")")
-            },
+            }
+            Stmt::While(s) => write!(f, "(while {} {})", &s.condition, &s.body),
         }
     }
 }
@@ -91,6 +93,13 @@ impl Stmt {
             },
         })
     }
+
+    pub fn r#while(condition: Expr, body: Stmt) -> Stmt {
+        Stmt::While(WhileStmt {
+            condition,
+            body: Box::new(body),
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -119,4 +128,10 @@ pub struct IfStmt {
     pub condition: Expr,
     pub then_branch: Box<Stmt>,
     pub else_branch: Option<Box<Stmt>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WhileStmt {
+    pub condition: Expr,
+    pub body: Box<Stmt>,
 }

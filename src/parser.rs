@@ -92,6 +92,8 @@ impl Parser {
             self.if_statement()
         } else if self.matches(vec![TokenType::Print]) {
             self.print_statement()
+        } else if self.matches(vec![TokenType::While]) {
+            self.while_statement()
         } else if self.matches(vec![TokenType::LeftBrace]) {
             self.block_statement()
         } else {
@@ -119,6 +121,16 @@ impl Parser {
         self.consume(TokenType::Semicolon)?;
 
         Ok(Stmt::print(value))
+    }
+
+    fn while_statement(&mut self) -> Result<Stmt, Error> {
+        let _ = self.consume(TokenType::LeftParen)?;
+        let condition = self.expression()?;
+        let _ = self.consume(TokenType::RightParen)?;
+
+        let body = self.statement()?;
+
+        Ok(Stmt::r#while(condition, body))
     }
 
     fn block_statement(&mut self) -> Result<Stmt, Error> {
@@ -505,4 +517,18 @@ mod tests {
         assert_eq!(sexpr("1 or 2;"), "(expr (or 1 2))")
     }
 
+    #[test]
+    fn parse_while_statement() {
+        assert_eq!(
+            sexpr(
+                r#"
+var a = 1;
+while (a < 10) {
+    a = a + 1;
+}
+"#
+            ),
+            "(var a 1)(while (< Identifier(\"a\") 10) (block (expr (= Identifier(\"a\") (+ Identifier(\"a\") 1)))))"
+        )
+    }
 }

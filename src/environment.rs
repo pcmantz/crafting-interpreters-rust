@@ -8,18 +8,24 @@ use crate::error::*;
 use crate::token::*;
 use crate::value::*;
 
-#[derive(Default, Debug, Clone)]
+pub type Env = Rc<RefCell<Environment>>;
+
+#[derive(Default, Debug)]
 pub struct Environment {
     values: HashMap<String, Value>,
-    enclosing: Option<Box<Environment>>,
+    enclosing: Option<Env>,
 }
 
 impl Environment {
-    pub fn with_enclosing(enclosing: Environment) -> Self {
+    pub fn with_enclosing(enclosing: Env) -> Self {
         Self {
-            enclosing: Some(Box::new(enclosing)),
+            enclosing: Some(enclosing),
             ..Default::default()
         }
+    }
+
+    pub fn into_rc(self) -> Env {
+        Rc::new(RefCell::new(self))
     }
 
     pub fn define(&mut self, name: &Token, value: Value) {
@@ -30,7 +36,7 @@ impl Environment {
         if let Some(val) = self.values.get(&name.lexeme) {
             Ok(val.clone())
         } else if let Some(enc) = self.enclosing.as_ref() {
-            enc.get(&name)
+            enc.borrow().get(&name)
         } else {
             Err(Error::runtime(
                 name,
@@ -45,7 +51,7 @@ impl Environment {
 
             Ok(value)
         } else if let Some(enc) = self.enclosing.as_mut() {
-            enc.assign(&name, value)
+            enc.borrow_mut().assign(&name, value)
         } else {
             Err(Error::runtime(
                 name,

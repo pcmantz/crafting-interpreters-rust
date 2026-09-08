@@ -20,7 +20,7 @@ pub mod interpreter;
 pub mod parser;
 pub mod scanner;
 
+pub use environment::{Env, Environment};
 pub use error::Error;
 pub use stmt::Program;
 pub use value::Value;
-pub use environment::Environment;

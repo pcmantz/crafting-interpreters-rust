@@ -11,60 +11,57 @@ use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
-pub fn run(env: &mut Environment, program: Program) -> Result<Value, Error> {
-    let mut res = Value::Nil;
-
-    for statement in program {
-        res = execute(env, &statement)?;
-    }
-
-    Ok(res)
+pub fn run(env: &Env, program: Program) -> Result<Value, Error> {
+    execute_statements(env, &program.0)
 }
 
-pub fn interpret(env: &mut Environment, statement: &Stmt) -> Result<Value, Error> {
+pub fn interpret(env: &Env, statement: &Stmt) -> Result<Value, Error> {
     execute(env, statement)
 }
 
-fn execute(env: &mut Environment, stmt: &Stmt) -> Result<Value, Error> {
+fn execute(env: &Env, stmt: &Stmt) -> Result<Value, Error> {
     match stmt {
         Stmt::Print(stmt) => print_statement(env, stmt),
         Stmt::Expression(stmt) => evaluate(env, &stmt.expression),
         Stmt::Var(stmt) => var_statement(env, stmt),
         Stmt::Block(stmt) => block_statement(env, stmt),
         Stmt::If(stmt) => if_statement(env, stmt),
+        Stmt::While(stmt) => while_statement(env, stmt),
     }
 }
 
-fn print_statement(env: &mut Environment, stmt: &PrintStmt) -> Result<Value, Error> {
+fn print_statement(env: &Env, stmt: &PrintStmt) -> Result<Value, Error> {
     let value = evaluate(env, &stmt.expression)?;
     println!("{}", value);
     Ok(Value::Nil)
 }
 
-fn var_statement(env: &mut Environment, stmt: &VarStmt) -> Result<Value, Error> {
+fn var_statement(env: &Env, stmt: &VarStmt) -> Result<Value, Error> {
     let value = match &stmt.initializer {
         Some(init) => evaluate(env, init)?,
         None => Value::Nil,
     };
 
-    env.define(&stmt.name, value);
+    env.borrow_mut().define(&stmt.name, value);
 
     Ok(Value::Nil)
 }
 
-fn block_statement(env: &mut Environment, stmt: &BlockStmt) -> Result<Value, Error> {
-    let mut block_env = Environment::with_enclosing(env.clone());
+fn block_statement(env: &Env, stmt: &BlockStmt) -> Result<Value, Error> {
+    let block_env = Environment::with_enclosing(Rc::clone(env)).into_rc();
+    execute_statements(&block_env, &stmt.statements)
+}
 
-    /* TODO: Figure out how to re-use run()  */
+fn execute_statements(env: &Env, statements: &[Stmt]) -> Result<Value, Error> {
     let mut res = Value::Nil;
-    for statement in &stmt.statements {
-        res = interpret(&mut block_env, statement)?;
+    for statement in statements {
+        res = execute(env, statement)?;
     }
 
     Ok(res)
 }
 
-fn if_statement(env: &mut Environment, stmt: &IfStmt) -> Result<Value, Error> {
+fn if_statement(env: &Env, stmt: &IfStmt) -> Result<Value, Error> {
     let val = evaluate(env, &stmt.condition)?;
 
     if is_truthy(&val) {
@@ -76,11 +73,22 @@ fn if_statement(env: &mut Environment, stmt: &IfStmt) -> Result<Value, Error> {
     }
 }
 
-fn evaluate(env: &mut Environment, expr: &Expr) -> Result<Value, Error> {
+fn while_statement(env: &Env, stmt: &WhileStmt) -> Result<Value, Error> {
+    while let cond = evaluate(env, &stmt.condition)?
+        && is_truthy(&cond)
+    {
+        println!("cond: {}", cond);
+        execute(env, &stmt.body)?;
+    }
+
+    Ok(Value::Nil)
+}
+
+fn evaluate(env: &Env, expr: &Expr) -> Result<Value, Error> {
     match expr {
         Expr::Literal(e) => Ok(e.value.clone()),
         Expr::Logical(e) => eval_logical(env, e),
-        Expr::Variable(e) => env.get(&e.name),
+        Expr::Variable(e) => env.borrow().get(&e.name),
         Expr::Assign(e) => eval_assign(env, e),
         Expr::Unary(e) => eval_unary(env, e),
         Expr::Binary(e) => eval_binary(env, e),
@@ -88,7 +96,7 @@ fn evaluate(env: &mut Environment, expr: &Expr) -> Result<Value, Error> {
     }
 }
 
-fn eval_logical(env: &mut Environment, expr: &LogicalExpr) -> Result<Value, Error> {
+fn eval_logical(env: &Env, expr: &LogicalExpr) -> Result<Value, Error> {
     let left = evaluate(env, &expr.left)?;
 
     match expr.operator.ty {
@@ -110,13 +118,13 @@ fn eval_logical(env: &mut Environment, expr: &LogicalExpr) -> Result<Value, Erro
     evaluate(env, &expr.right)
 }
 
-fn eval_assign(env: &mut Environment, expr: &AssignExpr) -> Result<Value, Error> {
+fn eval_assign(env: &Env, expr: &AssignExpr) -> Result<Value, Error> {
     let value = evaluate(env, &expr.expression)?;
 
-    env.assign(&expr.name, value)
+    env.borrow_mut().assign(&expr.name, value)
 }
 
-fn eval_unary(env: &mut Environment, expr: &UnaryExpr) -> Result<Value, Error> {
+fn eval_unary(env: &Env, expr: &UnaryExpr) -> Result<Value, Error> {
     let right = evaluate(env, &expr.right)?;
 
     match expr.operator.ty {
@@ -131,7 +139,7 @@ fn eval_unary(env: &mut Environment, expr: &UnaryExpr) -> Result<Value, Error> {
     }
 }
 
-fn eval_binary(env: &mut Environment, expr: &BinaryExpr) -> Result<Value, Error> {
+fn eval_binary(env: &Env, expr: &BinaryExpr) -> Result<Value, Error> {
     let left = evaluate(env, expr.left.as_ref())?;
     let right = evaluate(env, expr.right.as_ref())?;
 
@@ -214,9 +222,9 @@ mod tests {
         let tokens =
             scanner::scan(src.to_string()).unwrap_or_else(|e| panic!("scanning failed:\n{e}"));
         let statements = parser::parse(tokens).unwrap_or_else(|e| panic!("parsing failed:\n{e}"));
-        let mut env = Environment::default();
+        let env = Environment::default().into_rc();
 
-        run(&mut env, statements)
+        run(&env, statements)
     }
 
     fn eval(src: &str) -> Value {
@@ -343,5 +351,54 @@ a;
     #[test]
     fn interpret_logical_and() {
         assert_eq!(eval(r#""hi" and 2;"#), Value::Num(2.0));
+    }
+
+    #[test]
+    fn interpret_while_loop() {
+        assert_eq!(
+            eval(
+                r#"
+var a = 1;
+while (a < 10) {
+    a = a + 1;
+    print a;
+}
+a;
+"#
+            ),
+            Value::Num(10.0)
+        );
+    }
+
+    #[test]
+    fn interpret_variable_shadowing() {
+        assert_eq!(
+            eval(
+                r#"
+var a = 1;
+{
+    var a = 5;
+}
+a;
+"#
+            ),
+            Value::Num(1.0)
+        );
+    }
+
+    #[test]
+    fn interpret_variable_block_assignment() {
+        assert_eq!(
+            eval(
+                r#"
+var a = 1;
+{
+    a = 5;
+}
+a;
+"#
+            ),
+            Value::Num(5.0)
+        );
     }
 }
