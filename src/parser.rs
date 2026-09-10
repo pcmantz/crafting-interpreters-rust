@@ -55,7 +55,7 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, Error> {
-        if self.matches(vec![TokenType::Var]) {
+        if self.matches(&[TokenType::Var]) {
             match self.var_declaration() {
                 Ok(stmt) => Ok(stmt),
                 Err(e) => {
@@ -77,7 +77,7 @@ impl Parser {
     fn var_declaration(&mut self) -> Result<Stmt, Error> {
         let name = self.consume_identifier()?;
 
-        let initializer = if self.matches(vec![TokenType::Equal]) {
+        let initializer = if self.matches(&[TokenType::Equal]) {
             Some(self.expression()?)
         } else {
             None
@@ -88,18 +88,30 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
-        if self.matches(vec![TokenType::For]) {
-            self.for_statement()
-        } else if self.matches(vec![TokenType::If]) {
-            self.if_statement()
-        } else if self.matches(vec![TokenType::Print]) {
-            self.print_statement()
-        } else if self.matches(vec![TokenType::While]) {
-            self.while_statement()
-        } else if self.matches(vec![TokenType::LeftBrace]) {
-            self.block_statement()
-        } else {
-            self.expression_statement()
+        let ty = self.peek().ty.clone();
+
+        match ty {
+            TokenType::For => {
+                self.consume(TokenType::For)?;
+                self.for_statement()
+            }
+            TokenType::If => {
+                self.consume(TokenType::If)?;
+                self.if_statement()
+            }
+            TokenType::Print => {
+                self.consume(TokenType::Print)?;
+                self.print_statement()
+            }
+            TokenType::While => {
+                self.consume(TokenType::While)?;
+                self.while_statement()
+            }
+            TokenType::LeftBrace => {
+                self.consume(TokenType::LeftBrace)?;
+                self.block_statement()
+            }
+            _ => self.expression_statement(),
         }
     }
 
@@ -107,16 +119,15 @@ impl Parser {
         let _ = self.consume(TokenType::LeftParen)?;
 
         /* Initializer*/
-        let initializer = if self.matches(vec![TokenType::Semicolon]) {
+        let initializer = if self.matches(&[TokenType::Semicolon]) {
             None
-        } else if self.matches(vec![TokenType::Var]) {
+        } else if self.matches(&[TokenType::Var]) {
             let decl = self.var_declaration()?;
             Some(decl)
         } else {
             let expr = self.expression_statement()?;
             Some(expr)
         };
-
 
         /* Condition */
         let condition = if !self.check(&TokenType::Semicolon) {
@@ -128,7 +139,7 @@ impl Parser {
         };
 
         /* Increment */
-        let increment = if !self.check(&TokenType::RightParen){
+        let increment = if !self.check(&TokenType::RightParen) {
             Some(Stmt::expression(self.expression()?))
         } else {
             None
@@ -146,15 +157,18 @@ impl Parser {
         };
 
         /* If present, put the increment statement at the end of the body. */
-        let while_loop = Stmt::r#while(cond, match increment {
-            Some(incr) => Stmt::block(vec![body, incr]),
-            None => body,
-        });
+        let while_loop = Stmt::r#while(
+            cond,
+            match increment {
+                Some(incr) => Stmt::block(vec![body, incr]),
+                None => body,
+            },
+        );
 
         /* If present, put the initializer before the while loop */
         let for_loop = match initializer {
             Some(init) => Stmt::block(vec![init, while_loop]),
-            None => while_loop
+            None => while_loop,
         };
 
         Ok(for_loop)
@@ -166,7 +180,7 @@ impl Parser {
         let _ = self.consume(TokenType::RightParen)?;
 
         let then_branch = self.statement()?;
-        let else_branch = if self.matches(vec![TokenType::Else]) {
+        let else_branch = if self.matches(&[TokenType::Else]) {
             Some(self.statement()?)
         } else {
             None
@@ -219,7 +233,7 @@ impl Parser {
     fn assignment(&mut self) -> Result<Expr, Error> {
         let expr = self.logic_or()?;
 
-        if self.matches(vec![TokenType::Equal]) {
+        if self.matches(&[TokenType::Equal]) {
             let _equals = self.previous(); /* don't really need */
             let value = self.assignment()?;
 
@@ -239,7 +253,7 @@ impl Parser {
     fn logic_or(&mut self) -> Result<Expr, Error> {
         let mut expr = self.logic_and()?;
 
-        while self.matches(vec![TokenType::Or]) {
+        while self.matches(&[TokenType::Or]) {
             let operator = self.previous().clone();
             let right = self.logic_and()?;
 
@@ -252,7 +266,7 @@ impl Parser {
     fn logic_and(&mut self) -> Result<Expr, Error> {
         let mut expr = self.equality()?;
 
-        while self.matches(vec![TokenType::And]) {
+        while self.matches(&[TokenType::And]) {
             let operator = self.previous().clone();
             let right = self.logic_and()?;
 
@@ -265,7 +279,7 @@ impl Parser {
     fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr: Expr = self.comparison()?;
 
-        while self.matches(vec![TokenType::EqualEqual, TokenType::BangEqual]) {
+        while self.matches(&[TokenType::EqualEqual, TokenType::BangEqual]) {
             let operator = self.previous().clone();
             let right = self.comparison()?;
 
@@ -278,7 +292,7 @@ impl Parser {
     fn comparison(&mut self) -> Result<Expr, Error> {
         let mut expr: Expr = self.term()?;
 
-        while self.matches(vec![
+        while self.matches(&[
             TokenType::Greater,
             TokenType::GreaterEqual,
             TokenType::Less,
@@ -296,7 +310,7 @@ impl Parser {
     fn term(&mut self) -> Result<Expr, Error> {
         let mut expr: Expr = self.factor()?;
 
-        while self.matches(vec![TokenType::Plus, TokenType::Minus]) {
+        while self.matches(&[TokenType::Plus, TokenType::Minus]) {
             let operator = self.previous().clone();
             let right = self.factor()?;
 
@@ -309,7 +323,7 @@ impl Parser {
     fn factor(&mut self) -> Result<Expr, Error> {
         let mut expr: Expr = self.unary()?;
 
-        while self.matches(vec![TokenType::Slash, TokenType::Star]) {
+        while self.matches(&[TokenType::Slash, TokenType::Star]) {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
@@ -320,7 +334,7 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expr, Error> {
-        if self.matches(vec![TokenType::Bang, TokenType::Minus]) {
+        if self.matches(&[TokenType::Bang, TokenType::Minus]) {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
@@ -433,7 +447,7 @@ impl Parser {
         self.next()
     }
 
-    fn matches(&mut self, tokens: Vec<TokenType>) -> bool {
+    fn matches(&mut self, tokens: &[TokenType]) -> bool {
         let token = self.peek();
 
         if tokens.contains(&token.ty) {
