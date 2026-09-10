@@ -42,6 +42,7 @@ pub enum Stmt {
     Block(BlockStmt),
     If(IfStmt),
     While(WhileStmt),
+    Break,
 }
 
 impl fmt::Display for Stmt {
@@ -62,6 +63,7 @@ impl fmt::Display for Stmt {
                 write!(f, ")")
             }
             Stmt::While(s) => write!(f, "(while {} {})", &s.condition, &s.body),
+            Stmt::Break => write!(f, "(break)"),
         }
     }
 }
@@ -99,6 +101,10 @@ impl Stmt {
             condition,
             body: Box::new(body),
         })
+    }
+
+    pub fn r#break() -> Stmt {
+        Stmt::Break
     }
 }
 

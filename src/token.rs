@@ -22,6 +22,7 @@ pub static KEYWORDS: LazyLock<HashMap<&str, TokenType>> = LazyLock::new(|| {
         ("true", TokenType::True),
         ("var", TokenType::Var),
         ("while", TokenType::While),
+        ("break", TokenType::Break),
     ])
 });
 
@@ -78,6 +79,7 @@ pub enum TokenType {
     This,
     Var,
     While,
+    Break,
 
     // Fin
     EOF,

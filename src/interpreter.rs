@@ -11,32 +11,51 @@ use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
-pub fn run(env: &Env, program: Program) -> Result<Value, Error> {
-    execute_statements(env, &program.0)
+#[derive(Debug)]
+enum Flow {
+    Normal(Value),
+    Break,
 }
 
-pub fn interpret(env: &Env, statement: &Stmt) -> Result<Value, Error> {
+pub type ValueResult = Result<Value, Error>;
+pub type FlowResult = Result<Flow, Error>;
+
+pub fn run(env: &Env, program: Program) -> ValueResult {
+
+    for statement in program {
+        let val = execute(env, statement)?;
+
+        match val {
+            Flow::Normal(v) => res = v,
+            Flow::Break => Err(Error::break_outside_loop()),
+        }
+    }
+    Ok(Flow::Normal(res))
+}
+
+pub fn interpret(env: &Env, statement: &Stmt) -> FlowResult {
     execute(env, statement)
 }
 
-fn execute(env: &Env, stmt: &Stmt) -> Result<Value, Error> {
+fn execute(env: &Env, stmt: &Stmt) -> FlowResult {
     match stmt {
         Stmt::Print(stmt) => print_statement(env, stmt),
-        Stmt::Expression(stmt) => evaluate(env, &stmt.expression),
+        Stmt::Expression(stmt) => evaluate(env, &stmt.expression).and_then(|v| Ok(Flow::Normal(v))),
         Stmt::Var(stmt) => var_statement(env, stmt),
         Stmt::Block(stmt) => block_statement(env, stmt),
         Stmt::If(stmt) => if_statement(env, stmt),
         Stmt::While(stmt) => while_statement(env, stmt),
+        Stmt::Break => Ok(Flow::Break),
     }
 }
 
-fn print_statement(env: &Env, stmt: &PrintStmt) -> Result<Value, Error> {
+fn print_statement(env: &Env, stmt: &PrintStmt) -> FlowResult {
     let value = evaluate(env, &stmt.expression)?;
     println!("{}", value);
-    Ok(Value::Nil)
+    Ok(Flow::Normal(Value::Nil))
 }
 
-fn var_statement(env: &Env, stmt: &VarStmt) -> Result<Value, Error> {
+fn var_statement(env: &Env, stmt: &VarStmt) -> FlowResult {
     let value = match &stmt.initializer {
         Some(init) => evaluate(env, init)?,
         None => Value::Nil,
@@ -44,24 +63,30 @@ fn var_statement(env: &Env, stmt: &VarStmt) -> Result<Value, Error> {
 
     env.borrow_mut().define(&stmt.name, value);
 
-    Ok(Value::Nil)
+    Ok(Flow::Normal(Value::Nil))
 }
 
-fn block_statement(env: &Env, stmt: &BlockStmt) -> Result<Value, Error> {
+fn block_statement(env: &Env, stmt: &BlockStmt) -> FlowResult {
     let block_env = Environment::with_enclosing(Rc::clone(env)).into_rc();
     execute_statements(&block_env, &stmt.statements)
 }
 
-fn execute_statements(env: &Env, statements: &[Stmt]) -> Result<Value, Error> {
+fn execute_statements(env: &Env, statements: &[Stmt]) -> FlowResult {
     let mut res = Value::Nil;
-    for statement in statements {
-        res = execute(env, statement)?;
+
+    'statements: for statement in statements {
+        let val = execute(env, statement)?;
+
+        match val {
+            Flow::Normal(v) => res = v,
+            Flow::Break => break 'statements,
+        }
     }
 
-    Ok(res)
+    Ok(Flow::Normal(res))
 }
 
-fn if_statement(env: &Env, stmt: &IfStmt) -> Result<Value, Error> {
+fn if_statement(env: &Env, stmt: &IfStmt) -> FlowResult {
     let val = evaluate(env, &stmt.condition)?;
 
     if is_truthy(&val) {
@@ -69,22 +94,21 @@ fn if_statement(env: &Env, stmt: &IfStmt) -> Result<Value, Error> {
     } else if let Some(else_branch) = &stmt.else_branch {
         execute(env, else_branch)
     } else {
-        Ok(Value::Nil) /* nothing runs */
+        Ok(Flow::Normal(Value::Nil)) /* nothing runs */
     }
 }
 
-fn while_statement(env: &Env, stmt: &WhileStmt) -> Result<Value, Error> {
+fn while_statement(env: &Env, stmt: &WhileStmt) -> FlowResult {
     while let cond = evaluate(env, &stmt.condition)?
         && is_truthy(&cond)
     {
-        println!("cond: {}", cond);
         execute(env, &stmt.body)?;
     }
 
-    Ok(Value::Nil)
+    Ok(Flow::Normal(Value::Nil))
 }
 
-fn evaluate(env: &Env, expr: &Expr) -> Result<Value, Error> {
+fn evaluate(env: &Env, expr: &Expr) -> ValueResult {
     match expr {
         Expr::Literal(e) => Ok(e.value.clone()),
         Expr::Logical(e) => eval_logical(env, e),
@@ -96,7 +120,7 @@ fn evaluate(env: &Env, expr: &Expr) -> Result<Value, Error> {
     }
 }
 
-fn eval_logical(env: &Env, expr: &LogicalExpr) -> Result<Value, Error> {
+fn eval_logical(env: &Env, expr: &LogicalExpr) -> ValueResult {
     let left = evaluate(env, &expr.left)?;
 
     match expr.operator.ty {
@@ -118,13 +142,13 @@ fn eval_logical(env: &Env, expr: &LogicalExpr) -> Result<Value, Error> {
     evaluate(env, &expr.right)
 }
 
-fn eval_assign(env: &Env, expr: &AssignExpr) -> Result<Value, Error> {
+fn eval_assign(env: &Env, expr: &AssignExpr) -> ValueResult {
     let value = evaluate(env, &expr.expression)?;
 
     env.borrow_mut().assign(&expr.name, value)
 }
 
-fn eval_unary(env: &Env, expr: &UnaryExpr) -> Result<Value, Error> {
+fn eval_unary(env: &Env, expr: &UnaryExpr) -> ValueResult {
     let right = evaluate(env, &expr.right)?;
 
     match expr.operator.ty {
@@ -139,7 +163,7 @@ fn eval_unary(env: &Env, expr: &UnaryExpr) -> Result<Value, Error> {
     }
 }
 
-fn eval_binary(env: &Env, expr: &BinaryExpr) -> Result<Value, Error> {
+fn eval_binary(env: &Env, expr: &BinaryExpr) -> ValueResult {
     let left = evaluate(env, expr.left.as_ref())?;
     let right = evaluate(env, expr.right.as_ref())?;
 
@@ -218,7 +242,7 @@ mod tests {
 
     use super::*;
 
-    fn run_result(src: &str) -> Result<Value, Error> {
+    fn run_result(src: &str) -> FlowResult {
         let tokens =
             scanner::scan(src.to_string()).unwrap_or_else(|e| panic!("scanning failed:\n{e}"));
         let statements = parser::parse(tokens).unwrap_or_else(|e| panic!("parsing failed:\n{e}"));
@@ -228,7 +252,12 @@ mod tests {
     }
 
     fn eval(src: &str) -> Value {
-        run_result(src).unwrap_or_else(|e| panic!("interpreting_failed:\n{e}"))
+        let res = run_result(src).unwrap_or_else(|e| panic!("interpreting_failed:\n{e}"));
+
+        match res {
+            Flow::Normal(value) => value,
+            other => panic!("Expected a value, got {other:?}"),
+        }
     }
 
     fn eval_err(src: &str) -> String {
@@ -401,4 +430,22 @@ a;
             Value::Num(5.0)
         );
     }
+
+    #[test]
+    fn interpret_loop_with_break_statement() {
+        assert_eq!(
+            eval(
+                r#"
+var a = 0;
+while (a < 10) {
+    if (a == 5) { break; }
+    a = a + 1;
+}
+a;
+"#
+            ),
+            Value::Num(5.0)
+        );
+    }
+
 }

@@ -394,6 +394,15 @@ mod test {
     }
 
     #[test]
+    fn scan_break_statement() {
+        assert_eq!(
+            types(r#"break;"#),
+            vec![Break, Semicolon, EOF]
+        )
+    }
+
+
+    #[test]
     fn scan_hello_world() {
         assert_eq!(
             types(r#"print "Hello, World!";"#),

@@ -30,6 +30,7 @@ pub enum ErrorKind {
         message: String,
     },
     InvalidAssignment {},
+    BreakOutsideLoop {},
 }
 
 impl fmt::Display for Error {
@@ -45,6 +46,7 @@ impl fmt::Display for Error {
             }
             ErrorKind::Runtime { message, .. } => write!(f, "{}", message),
             ErrorKind::InvalidAssignment { .. } => write!(f, "Invalid assignment."),
+            ErrorKind::BreakOutsideLoop { .. } => write!(f, "`break` found outside enclosing loop."),
         }
     }
 }
@@ -101,6 +103,15 @@ impl Error {
             col: token.col,
         }
     }
+
+    pub fn break_outside_loop(token: &Token) -> Error {
+        Error {
+            kind: ErrorKind::BreakOutsideLoop {},
+            line: token.line,
+            col: token.col,
+        }
+    }
+
 }
 
 #[derive(Debug, Clone)]
