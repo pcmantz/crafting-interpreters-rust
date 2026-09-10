@@ -30,7 +30,7 @@ impl Lox {
 
     fn run_file(&mut self, file: PathBuf) -> Result<()> {
         let code = std::fs::read_to_string(&file)?;
-        let mut env = Environment::default().into_rc();
+        let env = Environment::default().into_rc();
         self.run_code(&env, code)?;
 
         Ok(())
