@@ -17,6 +17,7 @@ pub fn scan(input: String) -> Result<Vec<Token>, Error> {
     }
 }
 
+#[derive(Debug)]
 pub struct Scanner {
     source: Vec<u8>,
     tokens: Vec<Token>,

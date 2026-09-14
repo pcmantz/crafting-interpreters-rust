@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 use clap::Parser;
 pub use color_eyre::{Context, Result};
-use itertools::Itertools;
 
 use crafting_interpreters::scanner;
 

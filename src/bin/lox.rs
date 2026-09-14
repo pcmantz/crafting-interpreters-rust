@@ -65,7 +65,7 @@ impl Lox {
         let tokens = scanner::scan(code)?;
         let statements = parser::parse(tokens)?;
 
-        Ok(interpreter::run(&env, statements)?)
+        Ok(interpreter::run(env, statements)?)
     }
 }
 
