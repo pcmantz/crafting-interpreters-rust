@@ -15,6 +15,7 @@ pub enum Expr {
     Assign(AssignExpr),
     Unary(UnaryExpr),
     Binary(BinaryExpr),
+    Call(CallExpr),
     Grouping(GroupingExpr),
 }
 
@@ -28,6 +29,7 @@ impl fmt::Display for Expr {
             Expr::Grouping(e) => write!(f, "(group {})", e.expression),
             Expr::Variable(e) => write!(f, "{}", e.name),
             Expr::Assign(e) => write!(f, "(= {} {})", e.name, e.expression),
+            Expr::Call(e) => write!(f, "({} {})", e.callee, e.arguments.iter().join(" ")),
         }
     }
 }
@@ -57,6 +59,14 @@ impl Expr {
             left: Box::new(left),
             operator,
             right: Box::new(right),
+        })
+    }
+
+    pub fn call(callee: Expr, paren: Token, arguments: Vec<Expr>) -> Expr {
+        Expr::Call(CallExpr {
+            callee: Box::new(callee),
+            paren,
+            arguments,
         })
     }
 
@@ -101,6 +111,13 @@ pub struct BinaryExpr {
     pub left: Box<Expr>,
     pub operator: Token,
     pub right: Box<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CallExpr {
+    pub callee: Box<Expr>,
+    pub paren: Token,
+    pub arguments: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]

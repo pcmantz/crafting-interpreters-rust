@@ -41,7 +41,9 @@ pub enum Stmt {
     Var(VarStmt),
     Block(BlockStmt),
     If(IfStmt),
+    Return(ReturnStmt),
     While(WhileStmt),
+    Function(FunctionStmt),
 }
 
 impl fmt::Display for Stmt {
@@ -55,13 +57,28 @@ impl fmt::Display for Stmt {
             },
             Stmt::Block(b) => write!(f, "(block {})", b.statements.iter().join("")),
             Stmt::If(s) => {
-                write!(f, "(if {} {}", &s.condition, &s.then_branch);
+                write!(f, "(if {} {}", &s.condition, &s.then_branch)?;
                 if let Some(e) = &s.else_branch {
-                    write!(f, " {}", &e);
+                    write!(f, " {}", e)?;
                 }
                 write!(f, ")")
             }
+            Stmt::Return(s) => {
+                write!(f, "(return")?;
+                if let Some(e) = &s.value {
+                    write!(f, " {}", e)?;
+                }
+                write!(f, ")")
+            }
+
             Stmt::While(s) => write!(f, "(while {} {})", &s.condition, &s.body),
+            Stmt::Function(s) => write!(
+                f,
+                "(fun {} ({}) {})",
+                s.name.lexeme,
+                s.params.iter().map(|p| &p.lexeme).join(" "),
+                s.statements.iter().join(""),
+            ),
         }
     }
 }
@@ -94,10 +111,22 @@ impl Stmt {
         })
     }
 
+    pub fn r#return(keyword: Token, value: Option<Expr>) -> Stmt {
+        Stmt::Return(ReturnStmt { keyword, value })
+    }
+
     pub fn r#while(condition: Expr, body: Stmt) -> Stmt {
         Stmt::While(WhileStmt {
             condition,
             body: Box::new(body),
+        })
+    }
+
+    pub fn function(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> Stmt {
+        Stmt::Function(FunctionStmt {
+            name,
+            params,
+            statements,
         })
     }
 }
@@ -131,7 +160,20 @@ pub struct IfStmt {
 }
 
 #[derive(Debug, Clone)]
+pub struct ReturnStmt {
+    pub keyword: Token,
+    pub value: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
 pub struct WhileStmt {
     pub condition: Expr,
     pub body: Box<Stmt>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionStmt {
+    pub name: Token,
+    pub params: Vec<Token>,
+    pub statements: Vec<Stmt>,
 }

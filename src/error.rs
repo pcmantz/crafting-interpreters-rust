@@ -30,6 +30,10 @@ pub enum ErrorKind {
         message: String,
     },
     InvalidAssignment {},
+    TooManyArguments {
+        argument: Token,
+    },
+    ValueNotCallable {},
 }
 
 impl fmt::Display for Error {
@@ -45,6 +49,8 @@ impl fmt::Display for Error {
             }
             ErrorKind::Runtime { message, .. } => write!(f, "{}", message),
             ErrorKind::InvalidAssignment { .. } => write!(f, "Invalid assignment."),
+            ErrorKind::TooManyArguments { .. } => write!(f, "Too many arguments to function."),
+            ErrorKind::ValueNotCallable { .. } => write!(f, "Value not callable."),
         }
     }
 }
@@ -97,6 +103,26 @@ impl Error {
     pub fn invalid_assignment(token: &Token) -> Error {
         Error {
             kind: ErrorKind::InvalidAssignment {},
+            line: token.line,
+            col: token.col,
+        }
+    }
+
+    pub fn too_many_arguments(token: &Token) -> Error {
+        Error {
+            kind: ErrorKind::TooManyArguments {
+                argument: token.clone(),
+            },
+            line: token.line,
+            col: token.col,
+        }
+    }
+
+    pub fn value_not_callable(token: &Token) -> Error {
+        Error {
+            kind: ErrorKind::ValueNotCallable {
+                // argument: token.clone(),
+            },
             line: token.line,
             col: token.col,
         }

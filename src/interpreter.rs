@@ -7,12 +7,13 @@ use crate::prelude::*;
 use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
+use crate::function::*;
 use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
 #[derive(Debug, Clone)]
-enum Control {
+pub enum Control {
     Error(Error),
     Return { keyword: Token, value: Value },
     Break { keyword: Token },
@@ -71,7 +72,9 @@ fn execute(env: &Environment, stmt: &Stmt) -> ExecutionResult {
         Stmt::Var(stmt) => var_statement(env, stmt),
         Stmt::Block(stmt) => block_statement(env, stmt),
         Stmt::If(stmt) => if_statement(env, stmt),
+        Stmt::Return(stmt) => return_statement(env, stmt),
         Stmt::While(stmt) => while_statement(env, stmt),
+        Stmt::Function(stmt) => function_statement(env, stmt),
     }
 }
 
@@ -119,13 +122,30 @@ fn if_statement(env: &Environment, stmt: &IfStmt) -> ExecutionResult {
     }
 }
 
+fn return_statement(env: &Environment, stmt: &ReturnStmt) -> ExecutionResult {
+    let keyword = stmt.keyword.clone();
+    let value = match &stmt.value {
+        Some(expr) => evaluate(env, &expr)?,
+        None => Value::Nil,
+    };
+
+    Err(Control::Return { keyword, value })
+}
+
 fn while_statement(env: &Environment, stmt: &WhileStmt) -> ExecutionResult {
     while let cond = evaluate(env, &stmt.condition)?
         && is_truthy(&cond)
     {
-        println!("cond: {}", cond);
         execute(env, &stmt.body)?;
     }
+
+    Ok(Value::Nil)
+}
+
+fn function_statement(env: &Environment, stmt: &FunctionStmt) -> ExecutionResult {
+    let fun = Function::new(stmt.clone());
+    let val = Value::Fun(fun.into());
+    env.define(&stmt.name, val);
 
     Ok(Value::Nil)
 }
@@ -138,6 +158,7 @@ fn evaluate(env: &Environment, expr: &Expr) -> ExecutionResult {
         Expr::Assign(e) => eval_assign(env, e),
         Expr::Unary(e) => eval_unary(env, e),
         Expr::Binary(e) => eval_binary(env, e),
+        Expr::Call(e) => eval_call(env, e),
         Expr::Grouping(e) => evaluate(env, &e.expression),
     }
 }
@@ -227,6 +248,21 @@ fn eval_binary(env: &Environment, expr: &BinaryExpr) -> ExecutionResult {
         }
 
         _ => unreachable!(),
+    }
+}
+
+fn eval_call(env: &Environment, expr: &CallExpr) -> ExecutionResult {
+    let callee = evaluate(env, expr.callee.as_ref())?;
+
+    let mut arguments = Vec::new();
+    for argument in expr.arguments.iter() {
+        let arg = evaluate(env, &argument)?;
+        arguments.push(arg);
+    }
+
+    match callee {
+        Value::Fun(fun) => fun.call(env, &arguments).map_err(Control::from),
+        _ => Err(Control::Error(Error::value_not_callable(&expr.paren))),
     }
 }
 
@@ -448,6 +484,37 @@ a;
 "#
             ),
             Value::Num(5.0)
+        );
+    }
+
+    #[test]
+    fn interpret_function_definition() {
+        assert_eq!(
+            eval(
+                r#"
+fun foo(x, y) {
+    x = x + 1;
+    print x + y;
+}
+"#
+            ),
+            Value::Nil,
+        );
+    }
+
+    #[test]
+    fn interpret_function_call() {
+        assert_eq!(
+            eval(
+                r#"
+fun foo(x, y) {
+    x = x + 1;
+    return x + y;
+}
+foo(6, 7);
+"#
+            ),
+            Value::Num(14.0)
         );
     }
 }

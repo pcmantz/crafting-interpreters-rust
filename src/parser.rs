@@ -55,22 +55,16 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, Error> {
-        if self.matches(&[TokenType::Var]) {
-            match self.var_declaration() {
-                Ok(stmt) => Ok(stmt),
-                Err(e) => {
-                    self.synchronize();
-                    Err(e)
-                }
+        match self.peek().ty {
+            TokenType::Var => {
+                self.consume(TokenType::Var)?;
+                self.var_declaration()
             }
-        } else {
-            match self.statement() {
-                Ok(stmt) => Ok(stmt),
-                Err(e) => {
-                    self.synchronize();
-                    Err(e)
-                }
+            TokenType::Fun => {
+                self.consume(TokenType::Fun)?;
+                self.function_declaration()
             }
+            _ => self.statement(),
         }
     }
 
@@ -82,9 +76,39 @@ impl Parser {
         } else {
             None
         };
-
         self.consume(TokenType::Semicolon)?;
+
         Ok(Stmt::var(name, initializer))
+    }
+
+    fn function_declaration(&mut self) -> Result<Stmt, Error> {
+        /* Function name */
+        let name = self.consume_identifier()?;
+
+        /* Params */
+        self.consume(TokenType::LeftParen)?;
+        let mut params = Vec::new();
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if params.len() > 255 {
+                    return Err(Error::too_many_arguments(self.peek()));
+                }
+
+                let param = self.consume_identifier()?;
+                params.push(param);
+
+                if !self.matches(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen)?;
+
+        /* Function body */
+        self.consume(TokenType::LeftBrace)?;
+        let statements = self.block()?;
+
+        Ok(Stmt::function(name, params, statements))
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
@@ -102,6 +126,10 @@ impl Parser {
             TokenType::Print => {
                 self.consume(TokenType::Print)?;
                 self.print_statement()
+            }
+            TokenType::Return => {
+                self.consume(TokenType::Return)?;
+                self.return_statement()
             }
             TokenType::While => {
                 self.consume(TokenType::While)?;
@@ -196,6 +224,19 @@ impl Parser {
         Ok(Stmt::print(value))
     }
 
+    fn return_statement(&mut self) -> Result<Stmt, Error> {
+        let keyword = self.previous().clone();
+
+        let value = if !self.check(&TokenType::Semicolon) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(TokenType::Semicolon)?;
+
+        Ok(Stmt::r#return(keyword, value))
+    }
+
     fn while_statement(&mut self) -> Result<Stmt, Error> {
         let _ = self.consume(TokenType::LeftParen)?;
         let condition = self.expression()?;
@@ -207,6 +248,10 @@ impl Parser {
     }
 
     fn block_statement(&mut self) -> Result<Stmt, Error> {
+        Ok(Stmt::block(self.block()?))
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, Error> {
         let mut statements: Vec<Stmt> = Vec::new();
 
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
@@ -216,7 +261,7 @@ impl Parser {
 
         self.consume(TokenType::RightBrace)?;
 
-        Ok(Stmt::block(statements))
+        Ok(statements)
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, Error> {
@@ -341,7 +386,40 @@ impl Parser {
             return Ok(Expr::unary(operator, right));
         }
 
-        self.primary()
+        self.call()
+    }
+
+    fn call(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.primary()?;
+
+        while self.matches(&[TokenType::LeftParen]) {
+            expr = self.finish_call(expr)?;
+        }
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, Error> {
+        let mut arguments = Vec::new();
+
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                let arg = self.expression()?;
+                arguments.push(arg);
+
+                if arguments.len() >= 255 {
+                    return Err(Error::too_many_arguments(self.peek()));
+                }
+
+                if !self.matches(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        let paren = self.consume(TokenType::RightParen)?;
+
+        Ok(Expr::call(callee, paren, arguments))
     }
 
     fn primary(&mut self) -> Result<Expr, Error> {
@@ -437,14 +515,6 @@ impl Parser {
         }
 
         self.previous()
-    }
-
-    fn retreat(&mut self) -> &Token {
-        if !self.current == 0 {
-            self.current -= 1;
-        }
-
-        self.next()
     }
 
     fn matches(&mut self, tokens: &[TokenType]) -> bool {
@@ -616,6 +686,29 @@ for (var i = 0; i < 10; i = i + 1) {
 "#
             ),
             "(block (var i 0)(while (< Identifier(\"i\") 10) (block (block (print Identifier(\"i\")))(expr (= Identifier(\"i\") (+ Identifier(\"i\") 1))))))"
+        )
+    }
+
+    #[test]
+    fn parse_function_call() {
+        assert_eq!(
+            sexpr(r#"foo(x, y, z);"#),
+            r#"(expr (Identifier("foo") Identifier("x") Identifier("y") Identifier("z")))"#,
+        )
+    }
+
+    #[test]
+    fn parse_function_declaration() {
+        assert_eq!(
+            sexpr(
+                r#"
+fun foo(x) {
+    y = x + 10;
+    print y;
+}
+"#
+            ),
+            r#"(fun foo (x) (expr (= Identifier("y") (+ Identifier("x") 10)))(print Identifier("y")))"#
         )
     }
 }
