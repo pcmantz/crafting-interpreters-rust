@@ -8,35 +8,62 @@ use crate::error::*;
 use crate::token::*;
 use crate::value::*;
 
-pub type Env = Rc<RefCell<Environment>>;
-
+/// Inner body implementation of the Environment.
 #[derive(Default, Debug)]
-pub struct Environment {
-    values: HashMap<String, Value>,
-    enclosing: Option<Env>,
+struct Inner {
+    values: RefCell<HashMap<String, Value>>,
+    enclosing: Option<Environment>,
+}
+
+/// Handle over a Scope type.
+#[derive(Debug, Clone)]
+pub struct Environment(Rc<Inner>);
+
+impl Default for Environment {
+    fn default() -> Self {
+        Self::global()
+    }
 }
 
 impl Environment {
-    pub fn with_enclosing(enclosing: Env) -> Self {
-        Self {
-            enclosing: Some(enclosing),
+    /// Creates a default global environment.
+    pub fn global() -> Self {
+        let global = Self {
+            0: Rc::new(Inner::default()),
+        };
+
+        // TODO: Add definition of native functions here.
+
+        global
+    }
+
+    pub fn empty() -> Self {
+        Self(Rc::new(Inner {
+            enclosing: None,
             ..Default::default()
-        }
+        }))
     }
 
-    pub fn into_rc(self) -> Env {
-        Rc::new(RefCell::new(self))
+    /// Creates an environment with self as the enclosing environment.
+    pub fn child(&self) -> Self {
+        Self(Rc::new(Inner {
+            enclosing: Some(self.clone()),
+            ..Default::default()
+        }))
     }
 
-    pub fn define(&mut self, name: &Token, value: Value) {
-        self.values.insert(name.lexeme.clone(), value);
+    pub fn define(&self, name: &Token, value: Value) {
+        self.0
+            .values
+            .borrow_mut()
+            .insert(name.lexeme.clone(), value);
     }
 
     pub fn get(&self, name: &Token) -> Result<Value, Error> {
-        if let Some(val) = self.values.get(&name.lexeme) {
+        if let Some(val) = self.0.values.borrow().get(&name.lexeme) {
             Ok(val.clone())
-        } else if let Some(enc) = self.enclosing.as_ref() {
-            enc.borrow().get(&name)
+        } else if let Some(enc) = self.0.enclosing.as_ref() {
+            enc.get(name)
         } else {
             Err(Error::runtime(
                 name,
@@ -45,13 +72,13 @@ impl Environment {
         }
     }
 
-    pub fn assign(&mut self, name: &Token, value: Value) -> Result<Value, Error> {
-        if let Some(value_ref) = self.values.get_mut(&name.lexeme) {
+    pub fn assign(&self, name: &Token, value: Value) -> Result<Value, Error> {
+        if let Some(value_ref) = self.0.values.borrow_mut().get_mut(&name.lexeme) {
             *value_ref = value.clone();
 
             Ok(value)
-        } else if let Some(enc) = self.enclosing.as_mut() {
-            enc.borrow_mut().assign(&name, value)
+        } else if let Some(enc) = self.0.enclosing.as_ref() {
+            enc.assign(name, value)
         } else {
             Err(Error::runtime(
                 name,

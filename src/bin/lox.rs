@@ -16,10 +16,17 @@ struct Cli {
     file: Option<PathBuf>,
 }
 
-#[derive(Default)]
-struct Lox {}
+struct Lox {
+    env: Environment,
+}
 
 impl Lox {
+    pub fn new() -> Self {
+        Self {
+            env: Environment::global(),
+        }
+    }
+
     fn run(mut self, args: Cli) -> Result<()> {
         if let Some(file) = args.file {
             self.run_file(file)
@@ -30,16 +37,13 @@ impl Lox {
 
     fn run_file(&mut self, file: PathBuf) -> Result<()> {
         let code = std::fs::read_to_string(&file)?;
-        let env = Environment::default().into_rc();
-        self.run_code(&env, code)?;
+        self.run_code(code)?;
 
         Ok(())
     }
 
     fn run_prompt(&mut self) -> Result<()> {
         std::io::stdout().flush().expect("Oops");
-
-        let env = Environment::default().into_rc();
 
         loop {
             print!("❯ ");
@@ -51,7 +55,7 @@ impl Lox {
                 break;
             }
 
-            let res = self.run_code(&env, input.trim_end().to_string());
+            let res = self.run_code(input.trim_end().to_string());
             match res {
                 Ok(value) => println!("{value}"),
                 Err(report) => eprintln!("{report:?}"),
@@ -61,11 +65,11 @@ impl Lox {
         Ok(())
     }
 
-    fn run_code(&mut self, env: &Env, code: String) -> color_eyre::Result<Value> {
+    fn run_code(&self, code: String) -> color_eyre::Result<Value> {
         let tokens = scanner::scan(code)?;
         let statements = parser::parse(tokens)?;
 
-        Ok(interpreter::run(env, statements)?)
+        Ok(interpreter::run(&self.env, statements)?)
     }
 }
 
@@ -73,7 +77,7 @@ fn main() -> Result<()> {
     let _ = color_eyre::install();
 
     let args = Cli::parse();
-    let lox = Lox::default();
+    let lox = Lox::new();
 
     lox.run(args)
 }

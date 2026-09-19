@@ -11,15 +11,15 @@ use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
-pub fn run(env: &Env, program: Program) -> Result<Value, Error> {
+pub fn run(env: &Environment, program: Program) -> Result<Value, Error> {
     execute_statements(env, &program.0)
 }
 
-pub fn interpret(env: &Env, statement: &Stmt) -> Result<Value, Error> {
+pub fn interpret(env: &Environment, statement: &Stmt) -> Result<Value, Error> {
     execute(env, statement)
 }
 
-fn execute(env: &Env, stmt: &Stmt) -> Result<Value, Error> {
+fn execute(env: &Environment, stmt: &Stmt) -> Result<Value, Error> {
     match stmt {
         Stmt::Print(stmt) => print_statement(env, stmt),
         Stmt::Expression(stmt) => evaluate(env, &stmt.expression),
@@ -30,29 +30,30 @@ fn execute(env: &Env, stmt: &Stmt) -> Result<Value, Error> {
     }
 }
 
-fn print_statement(env: &Env, stmt: &PrintStmt) -> Result<Value, Error> {
+fn print_statement(env: &Environment, stmt: &PrintStmt) -> Result<Value, Error> {
     let value = evaluate(env, &stmt.expression)?;
     println!("{}", value);
     Ok(Value::Nil)
 }
 
-fn var_statement(env: &Env, stmt: &VarStmt) -> Result<Value, Error> {
+fn var_statement(env: &Environment, stmt: &VarStmt) -> Result<Value, Error> {
     let value = match &stmt.initializer {
         Some(init) => evaluate(env, init)?,
         None => Value::Nil,
     };
 
-    env.borrow_mut().define(&stmt.name, value);
+    env.define(&stmt.name, value);
 
     Ok(Value::Nil)
 }
 
-fn block_statement(env: &Env, stmt: &BlockStmt) -> Result<Value, Error> {
-    let block_env = Environment::with_enclosing(Rc::clone(env)).into_rc();
+fn block_statement(env: &Environment, stmt: &BlockStmt) -> Result<Value, Error> {
+    let block_env = env.child();
     execute_statements(&block_env, &stmt.statements)
 }
 
-fn execute_statements(env: &Env, statements: &[Stmt]) -> Result<Value, Error> {
+/* NOTE: See how to make sharing this crate-only */
+pub fn execute_statements(env: &Environment, statements: &[Stmt]) -> Result<Value, Error> {
     let mut res = Value::Nil;
     for statement in statements {
         res = execute(env, statement)?;
@@ -61,7 +62,7 @@ fn execute_statements(env: &Env, statements: &[Stmt]) -> Result<Value, Error> {
     Ok(res)
 }
 
-fn if_statement(env: &Env, stmt: &IfStmt) -> Result<Value, Error> {
+fn if_statement(env: &Environment, stmt: &IfStmt) -> Result<Value, Error> {
     let val = evaluate(env, &stmt.condition)?;
 
     if is_truthy(&val) {
@@ -73,7 +74,7 @@ fn if_statement(env: &Env, stmt: &IfStmt) -> Result<Value, Error> {
     }
 }
 
-fn while_statement(env: &Env, stmt: &WhileStmt) -> Result<Value, Error> {
+fn while_statement(env: &Environment, stmt: &WhileStmt) -> Result<Value, Error> {
     while let cond = evaluate(env, &stmt.condition)?
         && is_truthy(&cond)
     {
@@ -84,11 +85,11 @@ fn while_statement(env: &Env, stmt: &WhileStmt) -> Result<Value, Error> {
     Ok(Value::Nil)
 }
 
-fn evaluate(env: &Env, expr: &Expr) -> Result<Value, Error> {
+fn evaluate(env: &Environment, expr: &Expr) -> Result<Value, Error> {
     match expr {
         Expr::Literal(e) => Ok(e.value.clone()),
         Expr::Logical(e) => eval_logical(env, e),
-        Expr::Variable(e) => env.borrow().get(&e.name),
+        Expr::Variable(e) => env.get(&e.name),
         Expr::Assign(e) => eval_assign(env, e),
         Expr::Unary(e) => eval_unary(env, e),
         Expr::Binary(e) => eval_binary(env, e),
@@ -96,7 +97,7 @@ fn evaluate(env: &Env, expr: &Expr) -> Result<Value, Error> {
     }
 }
 
-fn eval_logical(env: &Env, expr: &LogicalExpr) -> Result<Value, Error> {
+fn eval_logical(env: &Environment, expr: &LogicalExpr) -> Result<Value, Error> {
     let left = evaluate(env, &expr.left)?;
 
     match expr.operator.ty {
@@ -118,13 +119,13 @@ fn eval_logical(env: &Env, expr: &LogicalExpr) -> Result<Value, Error> {
     evaluate(env, &expr.right)
 }
 
-fn eval_assign(env: &Env, expr: &AssignExpr) -> Result<Value, Error> {
+fn eval_assign(env: &Environment, expr: &AssignExpr) -> Result<Value, Error> {
     let value = evaluate(env, &expr.expression)?;
 
-    env.borrow_mut().assign(&expr.name, value)
+    env.assign(&expr.name, value)
 }
 
-fn eval_unary(env: &Env, expr: &UnaryExpr) -> Result<Value, Error> {
+fn eval_unary(env: &Environment, expr: &UnaryExpr) -> Result<Value, Error> {
     let right = evaluate(env, &expr.right)?;
 
     match expr.operator.ty {
@@ -139,7 +140,7 @@ fn eval_unary(env: &Env, expr: &UnaryExpr) -> Result<Value, Error> {
     }
 }
 
-fn eval_binary(env: &Env, expr: &BinaryExpr) -> Result<Value, Error> {
+fn eval_binary(env: &Environment, expr: &BinaryExpr) -> Result<Value, Error> {
     let left = evaluate(env, expr.left.as_ref())?;
     let right = evaluate(env, expr.right.as_ref())?;
 
@@ -222,7 +223,7 @@ mod tests {
         let tokens =
             scanner::scan(src.to_string()).unwrap_or_else(|e| panic!("scanning failed:\n{e}"));
         let statements = parser::parse(tokens).unwrap_or_else(|e| panic!("parsing failed:\n{e}"));
-        let env = Environment::default().into_rc();
+        let env = Environment::global();
 
         run(&env, statements)
     }
