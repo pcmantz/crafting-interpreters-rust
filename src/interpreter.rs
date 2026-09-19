@@ -11,15 +11,21 @@ use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
+type ExecutionResult = Result<Value, Error>;
+
+
+/// Interpret a lox program.
 pub fn run(env: &Environment, program: Program) -> Result<Value, Error> {
     execute_statements(env, &program.0)
 }
 
+
+/// Interpret a lox statement.
 pub fn interpret(env: &Environment, statement: &Stmt) -> Result<Value, Error> {
     execute(env, statement)
 }
 
-fn execute(env: &Environment, stmt: &Stmt) -> Result<Value, Error> {
+fn execute(env: &Environment, stmt: &Stmt) -> ExecutionResult {
     match stmt {
         Stmt::Print(stmt) => print_statement(env, stmt),
         Stmt::Expression(stmt) => evaluate(env, &stmt.expression),
@@ -30,13 +36,13 @@ fn execute(env: &Environment, stmt: &Stmt) -> Result<Value, Error> {
     }
 }
 
-fn print_statement(env: &Environment, stmt: &PrintStmt) -> Result<Value, Error> {
+fn print_statement(env: &Environment, stmt: &PrintStmt) -> ExecutionResult {
     let value = evaluate(env, &stmt.expression)?;
     println!("{}", value);
     Ok(Value::Nil)
 }
 
-fn var_statement(env: &Environment, stmt: &VarStmt) -> Result<Value, Error> {
+fn var_statement(env: &Environment, stmt: &VarStmt) -> ExecutionResult {
     let value = match &stmt.initializer {
         Some(init) => evaluate(env, init)?,
         None => Value::Nil,
@@ -47,13 +53,13 @@ fn var_statement(env: &Environment, stmt: &VarStmt) -> Result<Value, Error> {
     Ok(Value::Nil)
 }
 
-fn block_statement(env: &Environment, stmt: &BlockStmt) -> Result<Value, Error> {
+fn block_statement(env: &Environment, stmt: &BlockStmt) -> ExecutionResult {
     let block_env = env.child();
     execute_statements(&block_env, &stmt.statements)
 }
 
 /* NOTE: See how to make sharing this crate-only */
-pub fn execute_statements(env: &Environment, statements: &[Stmt]) -> Result<Value, Error> {
+pub fn execute_statements(env: &Environment, statements: &[Stmt]) -> ExecutionResult {
     let mut res = Value::Nil;
     for statement in statements {
         res = execute(env, statement)?;
@@ -62,7 +68,7 @@ pub fn execute_statements(env: &Environment, statements: &[Stmt]) -> Result<Valu
     Ok(res)
 }
 
-fn if_statement(env: &Environment, stmt: &IfStmt) -> Result<Value, Error> {
+fn if_statement(env: &Environment, stmt: &IfStmt) -> ExecutionResult {
     let val = evaluate(env, &stmt.condition)?;
 
     if is_truthy(&val) {
@@ -74,7 +80,7 @@ fn if_statement(env: &Environment, stmt: &IfStmt) -> Result<Value, Error> {
     }
 }
 
-fn while_statement(env: &Environment, stmt: &WhileStmt) -> Result<Value, Error> {
+fn while_statement(env: &Environment, stmt: &WhileStmt) -> ExecutionResult {
     while let cond = evaluate(env, &stmt.condition)?
         && is_truthy(&cond)
     {
@@ -85,7 +91,7 @@ fn while_statement(env: &Environment, stmt: &WhileStmt) -> Result<Value, Error> 
     Ok(Value::Nil)
 }
 
-fn evaluate(env: &Environment, expr: &Expr) -> Result<Value, Error> {
+fn evaluate(env: &Environment, expr: &Expr) -> ExecutionResult {
     match expr {
         Expr::Literal(e) => Ok(e.value.clone()),
         Expr::Logical(e) => eval_logical(env, e),
@@ -97,7 +103,7 @@ fn evaluate(env: &Environment, expr: &Expr) -> Result<Value, Error> {
     }
 }
 
-fn eval_logical(env: &Environment, expr: &LogicalExpr) -> Result<Value, Error> {
+fn eval_logical(env: &Environment, expr: &LogicalExpr) -> ExecutionResult {
     let left = evaluate(env, &expr.left)?;
 
     match expr.operator.ty {
@@ -119,13 +125,13 @@ fn eval_logical(env: &Environment, expr: &LogicalExpr) -> Result<Value, Error> {
     evaluate(env, &expr.right)
 }
 
-fn eval_assign(env: &Environment, expr: &AssignExpr) -> Result<Value, Error> {
+fn eval_assign(env: &Environment, expr: &AssignExpr) -> ExecutionResult {
     let value = evaluate(env, &expr.expression)?;
 
     env.assign(&expr.name, value)
 }
 
-fn eval_unary(env: &Environment, expr: &UnaryExpr) -> Result<Value, Error> {
+fn eval_unary(env: &Environment, expr: &UnaryExpr) -> ExecutionResult {
     let right = evaluate(env, &expr.right)?;
 
     match expr.operator.ty {
@@ -140,7 +146,7 @@ fn eval_unary(env: &Environment, expr: &UnaryExpr) -> Result<Value, Error> {
     }
 }
 
-fn eval_binary(env: &Environment, expr: &BinaryExpr) -> Result<Value, Error> {
+fn eval_binary(env: &Environment, expr: &BinaryExpr) -> ExecutionResult {
     let left = evaluate(env, expr.left.as_ref())?;
     let right = evaluate(env, expr.right.as_ref())?;
 
@@ -219,7 +225,7 @@ mod tests {
 
     use super::*;
 
-    fn run_result(src: &str) -> Result<Value, Error> {
+    fn run_result(src: &str) -> ExecutionResult {
         let tokens =
             scanner::scan(src.to_string()).unwrap_or_else(|e| panic!("scanning failed:\n{e}"));
         let statements = parser::parse(tokens).unwrap_or_else(|e| panic!("parsing failed:\n{e}"));
