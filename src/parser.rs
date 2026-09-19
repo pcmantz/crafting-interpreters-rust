@@ -618,8 +618,4 @@ for (var i = 0; i < 10; i = i + 1) {
             "(block (var i 0)(while (< Identifier(\"i\") 10) (block (block (print Identifier(\"i\")))(expr (= Identifier(\"i\") (+ Identifier(\"i\") 1))))))"
         )
     }
-
-
-
-
 }
