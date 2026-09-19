@@ -11,18 +11,57 @@ use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
-type ExecutionResult = Result<Value, Error>;
+#[derive(Debug, Clone)]
+enum Control {
+    Error(Error),
+    Return { keyword: Token, value: Value },
+    Break { keyword: Token },
+}
 
+impl fmt::Display for Control {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Control::Error(e) => write!(f, "{}", e),
+            Control::Return {
+                keyword: k,
+                value: v,
+            } => todo!(),
+            Control::Break { keyword: k } => todo!(),
+        }
+    }
+}
+
+impl From<Error> for Control {
+    fn from(source: Error) -> Self {
+        Self::Error(source)
+    }
+}
+
+impl std::error::Error for Control {}
+
+impl Control {
+    fn into_error(self) -> Error {
+        match self {
+            Control::Return {
+                keyword: k,
+                value: v,
+            } => Error::runtime(&k, "return outside function call."),
+            Control::Break { keyword: k } => Error::runtime(&k, "break outside loop."),
+            Control::Error(e) => e,
+        }
+    }
+}
+
+type ExecutionResult = Result<Value, Control>;
 
 /// Interpret a lox program.
 pub fn run(env: &Environment, program: Program) -> Result<Value, Error> {
-    execute_statements(env, &program.0)
+    execute_statements(env, &program.0).map_err(Control::into_error)
 }
-
 
 /// Interpret a lox statement.
 pub fn interpret(env: &Environment, statement: &Stmt) -> Result<Value, Error> {
-    execute(env, statement)
+    execute(env, statement).map_err(Control::into_error)
 }
 
 fn execute(env: &Environment, stmt: &Stmt) -> ExecutionResult {
@@ -95,7 +134,7 @@ fn evaluate(env: &Environment, expr: &Expr) -> ExecutionResult {
     match expr {
         Expr::Literal(e) => Ok(e.value.clone()),
         Expr::Logical(e) => eval_logical(env, e),
-        Expr::Variable(e) => env.get(&e.name),
+        Expr::Variable(e) => env.get(&e.name).map_err(|err| err.into()),
         Expr::Assign(e) => eval_assign(env, e),
         Expr::Unary(e) => eval_unary(env, e),
         Expr::Binary(e) => eval_binary(env, e),
@@ -128,7 +167,7 @@ fn eval_logical(env: &Environment, expr: &LogicalExpr) -> ExecutionResult {
 fn eval_assign(env: &Environment, expr: &AssignExpr) -> ExecutionResult {
     let value = evaluate(env, &expr.expression)?;
 
-    env.assign(&expr.name, value)
+    env.assign(&expr.name, value).map_err(|e| e.into())
 }
 
 fn eval_unary(env: &Environment, expr: &UnaryExpr) -> ExecutionResult {
@@ -155,7 +194,10 @@ fn eval_binary(env: &Environment, expr: &BinaryExpr) -> ExecutionResult {
         TokenType::Plus => match (&left, &right) {
             (Value::Num(a), Value::Num(b)) => Ok(Value::Num(a + b)),
             (Value::Str(a), Value::Str(b)) => Ok(Value::Str(format!("{a}{b}"))),
-            _ => Err(Error::runtime(&expr.operator, "Operands must be numbers.")),
+            _ => Err(Control::Error(Error::runtime(
+                &expr.operator,
+                "Operands must be numbers.",
+            ))),
         },
 
         TokenType::EqualEqual => Ok(Value::Bool(is_equal(&left, &right))),
@@ -225,7 +267,7 @@ mod tests {
 
     use super::*;
 
-    fn run_result(src: &str) -> ExecutionResult {
+    fn run_result(src: &str) -> Result<Value, Error> {
         let tokens =
             scanner::scan(src.to_string()).unwrap_or_else(|e| panic!("scanning failed:\n{e}"));
         let statements = parser::parse(tokens).unwrap_or_else(|e| panic!("parsing failed:\n{e}"));
