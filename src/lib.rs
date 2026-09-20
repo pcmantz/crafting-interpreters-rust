@@ -11,6 +11,7 @@ pub mod pipe;
 pub mod error;
 pub mod expr;
 pub mod function;
+pub mod native;
 pub mod stmt;
 pub mod token;
 pub mod value;

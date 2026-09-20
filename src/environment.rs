@@ -5,6 +5,7 @@
 use crate::prelude::*;
 
 use crate::error::*;
+use crate::native::*;
 use crate::token::*;
 use crate::value::*;
 
@@ -28,11 +29,9 @@ impl Default for Environment {
 impl Environment {
     /// Creates a default global environment.
     pub fn global() -> Self {
-        let global = Self {
-            0: Rc::new(Inner::default()),
-        };
+        let global = Self::empty();
 
-        // TODO: Add definition of native functions here.
+        populate_environment(&global);
 
         global
     }

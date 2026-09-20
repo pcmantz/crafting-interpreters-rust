@@ -157,8 +157,7 @@ fn while_statement(env: &Environment, stmt: &WhileStmt) -> ExecutionResult {
 }
 
 fn function_statement(env: &Environment, stmt: &FunctionStmt) -> ExecutionResult {
-    let fun = Function::new(stmt.clone());
-    let val = Value::Fun(fun.into());
+    let val = Value::function(stmt.clone());
     env.define(&stmt.name.lexeme, val);
 
     Ok(Value::Nil)
@@ -564,4 +563,10 @@ x;
             Value::Num(2.0)
         );
     }
+
+    #[test]
+    fn interpret_clock_native_function() {
+        assert!(matches!(eval("clock();"), Value::Num(n) if n > 0.0));
+    }
+
 }

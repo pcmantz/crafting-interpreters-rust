@@ -24,7 +24,7 @@ pub enum FunctionKind {
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    pub statement: FunctionStmt,
+    pub statement: Rc<FunctionStmt>,
 }
 
 impl Callable for Function {
@@ -55,6 +55,23 @@ impl Callable for Function {
 
 impl Function {
     pub fn new(statement: FunctionStmt) -> Self {
-        Self { statement }
+        Self { statement: statement.into() }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeFunction {
+    pub name: String,
+    pub arity: usize,
+    pub fun: fn(&[Value]) -> Result<Value, Error>,
+}
+
+impl Callable for NativeFunction {
+    fn arity(&self) -> usize {
+        self.arity
+    }
+
+    fn call(&self, _env: &Environment, args: &[Value]) -> Result<Value, Error> {
+        (self.fun)(args)
     }
 }
