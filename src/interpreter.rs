@@ -91,7 +91,7 @@ fn var_statement(env: &Environment, stmt: &VarStmt) -> ExecutionResult {
         None => Value::Nil,
     };
 
-    env.define(&stmt.name, value);
+    env.define(&stmt.name.lexeme, value);
 
     Ok(Value::Nil)
 }
@@ -159,7 +159,7 @@ fn while_statement(env: &Environment, stmt: &WhileStmt) -> ExecutionResult {
 fn function_statement(env: &Environment, stmt: &FunctionStmt) -> ExecutionResult {
     let fun = Function::new(stmt.clone());
     let val = Value::Fun(fun.into());
-    env.define(&stmt.name, val);
+    env.define(&stmt.name.lexeme, val);
 
     Ok(Value::Nil)
 }
@@ -168,7 +168,7 @@ fn evaluate(env: &Environment, expr: &Expr) -> ExecutionResult {
     match expr {
         Expr::Literal(e) => Ok(e.value.clone()),
         Expr::Logical(e) => eval_logical(env, e),
-        Expr::Variable(e) => env.get(&e.name).map_err(|err| err.into()),
+        Expr::Variable(e) => eval_variable(env, e),
         Expr::Assign(e) => eval_assign(env, e),
         Expr::Unary(e) => eval_unary(env, e),
         Expr::Binary(e) => eval_binary(env, e),
@@ -199,10 +199,26 @@ fn eval_logical(env: &Environment, expr: &LogicalExpr) -> ExecutionResult {
     evaluate(env, &expr.right)
 }
 
+fn eval_variable(env: &Environment, expr: &VariableExpr) -> ExecutionResult {
+    env.get(&expr.name.lexeme).ok_or_else(|| {
+        Error::runtime(
+            &expr.name,
+            format!("Undefined variable '{}'", &expr.name.lexeme),
+        )
+        .into()
+    })
+}
+
 fn eval_assign(env: &Environment, expr: &AssignExpr) -> ExecutionResult {
     let value = evaluate(env, &expr.expression)?;
 
-    env.assign(&expr.name, value).map_err(|e| e.into())
+    env.assign(&expr.name.lexeme, value).ok_or_else(|| {
+        Error::runtime(
+            &expr.name,
+            format!("Undefined variable '{}'", &expr.name.lexeme),
+        )
+        .into()
+    })
 }
 
 fn eval_unary(env: &Environment, expr: &UnaryExpr) -> ExecutionResult {

@@ -52,38 +52,29 @@ impl Environment {
         }))
     }
 
-    pub fn define(&self, name: &Token, value: Value) {
-        self.0
-            .values
-            .borrow_mut()
-            .insert(name.lexeme.clone(), value);
+    pub fn define(&self, name: &str, value: Value) {
+        self.0.values.borrow_mut().insert(name.into(), value);
     }
 
-    pub fn get(&self, name: &Token) -> Result<Value, Error> {
-        if let Some(val) = self.0.values.borrow().get(&name.lexeme) {
-            Ok(val.clone())
+    pub fn get(&self, name: &str) -> Option<Value> {
+        if let Some(val) = self.0.values.borrow().get(name) {
+            Some(val.clone())
         } else if let Some(enc) = self.0.enclosing.as_ref() {
             enc.get(name)
         } else {
-            Err(Error::runtime(
-                name,
-                format!("Undefined variable '{}'.", name.lexeme),
-            ))
+            None
         }
     }
 
-    pub fn assign(&self, name: &Token, value: Value) -> Result<Value, Error> {
-        if let Some(value_ref) = self.0.values.borrow_mut().get_mut(&name.lexeme) {
+    pub fn assign(&self, name: &str, value: Value) -> Option<Value> {
+        if let Some(value_ref) = self.0.values.borrow_mut().get_mut(name) {
             *value_ref = value.clone();
 
-            Ok(value)
+            Some(value)
         } else if let Some(enc) = self.0.enclosing.as_ref() {
             enc.assign(name, value)
         } else {
-            Err(Error::runtime(
-                name,
-                format!("Undefined variable '{}'.", name.lexeme),
-            ))
+            None
         }
     }
 }

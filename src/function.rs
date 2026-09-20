@@ -36,10 +36,10 @@ impl Callable for Function {
         let call_env = env.child();
 
         for i in 0..arguments.len() {
-            let name = self.statement.params[i].clone();
+            let name = &self.statement.params[i].lexeme;
             let value = arguments[i].clone();
 
-            call_env.define(&name, value);
+            call_env.define(name, value);
         }
 
         match execute_statements(&call_env, &self.statement.statements) {
