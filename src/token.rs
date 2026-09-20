@@ -7,6 +7,7 @@ use crate::prelude::*;
 pub static KEYWORDS: LazyLock<HashMap<&str, TokenType>> = LazyLock::new(|| {
     HashMap::from([
         ("and", TokenType::And),
+        ("break", TokenType::Break),
         ("class", TokenType::Class),
         ("else", TokenType::Else),
         ("false", TokenType::False),
@@ -66,10 +67,11 @@ pub enum TokenType {
 
     // Keywords
     And,
+    Break,
     Class,
     Else,
-    Fun,
     For,
+    Fun,
     If,
     Or,
     Print,

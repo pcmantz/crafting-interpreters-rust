@@ -44,6 +44,7 @@ pub enum Stmt {
     Return(ReturnStmt),
     While(WhileStmt),
     Function(FunctionStmt),
+    Break(BreakStmt),
 }
 
 impl fmt::Display for Stmt {
@@ -79,6 +80,7 @@ impl fmt::Display for Stmt {
                 s.params.iter().map(|p| &p.lexeme).join(" "),
                 s.statements.iter().join(""),
             ),
+            Stmt::Break(s) => write!(f, "(break)"),
         }
     }
 }
@@ -129,6 +131,10 @@ impl Stmt {
             statements,
         })
     }
+
+    pub fn r#break(keyword: Token) -> Stmt {
+        Stmt::Break(BreakStmt { keyword })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -176,4 +182,9 @@ pub struct FunctionStmt {
     pub name: Token,
     pub params: Vec<Token>,
     pub statements: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BreakStmt {
+    pub keyword: Token,
 }

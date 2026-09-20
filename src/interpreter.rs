@@ -73,6 +73,7 @@ fn execute(env: &Environment, stmt: &Stmt) -> ExecutionResult {
         Stmt::Block(stmt) => block_statement(env, stmt),
         Stmt::If(stmt) => if_statement(env, stmt),
         Stmt::Return(stmt) => return_statement(env, stmt),
+        Stmt::Break(stmt) => break_statement(env, stmt),
         Stmt::While(stmt) => while_statement(env, stmt),
         Stmt::Function(stmt) => function_statement(env, stmt),
     }
@@ -132,11 +133,24 @@ fn return_statement(env: &Environment, stmt: &ReturnStmt) -> ExecutionResult {
     Err(Control::Return { keyword, value })
 }
 
+fn break_statement(env: &Environment, stmt: &BreakStmt) -> ExecutionResult {
+    let keyword = stmt.keyword.clone();
+
+    Err(Control::Break { keyword })
+}
+
 fn while_statement(env: &Environment, stmt: &WhileStmt) -> ExecutionResult {
     while let cond = evaluate(env, &stmt.condition)?
         && is_truthy(&cond)
     {
-        execute(env, &stmt.body)?;
+        match execute(env, &stmt.body) {
+            Ok(_) => {}
+            Err(Control::Break { keyword }) => break,
+            Err(Control::Error(e)) => return Err(Control::Error(e)),
+            Err(Control::Return { keyword, value }) => {
+                return Err(Control::Return { keyword, value });
+            }
+        }
     }
 
     Ok(Value::Nil)
@@ -515,6 +529,23 @@ foo(6, 7);
 "#
             ),
             Value::Num(14.0)
+        );
+    }
+
+    #[test]
+    fn interpret_break() {
+        assert_eq!(
+            eval(
+                r#"
+var x = 0;
+while (x < 5 ) {
+    if (x == 2) break;
+    x = x + 1;
+}
+x;
+"#
+            ),
+            Value::Num(2.0)
         );
     }
 }

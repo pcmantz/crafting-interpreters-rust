@@ -131,6 +131,11 @@ impl Parser {
                 self.consume(TokenType::Return)?;
                 self.return_statement()
             }
+            TokenType::Break => {
+                self.consume(TokenType::Break)?;
+                self.break_statement()
+            }
+
             TokenType::While => {
                 self.consume(TokenType::While)?;
                 self.while_statement()
@@ -222,6 +227,13 @@ impl Parser {
         self.consume(TokenType::Semicolon)?;
 
         Ok(Stmt::print(value))
+    }
+
+    fn break_statement(&mut self) -> Result<Stmt, Error> {
+        let keyword = self.previous().clone();
+        self.consume(TokenType::Semicolon)?;
+
+        Ok(Stmt::r#break(keyword))
     }
 
     fn return_statement(&mut self) -> Result<Stmt, Error> {
@@ -672,6 +684,23 @@ while (a < 10) {
 "#
             ),
             "(var a 1)(while (< Identifier(\"a\") 10) (block (expr (= Identifier(\"a\") (+ Identifier(\"a\") 1)))))"
+        )
+    }
+
+    #[test]
+    fn parse_break_statement() {
+        assert_eq!(
+            sexpr(
+                r#"
+var a = 1;
+while (a < 10) {
+    a = a + 1;
+    if (a > 5) break;
+    a = 100;
+}
+"#
+            ),
+            r#"(var a 1)(while (< Identifier("a") 10) (block (expr (= Identifier("a") (+ Identifier("a") 1)))(if (> Identifier("a") 5) (break))(expr (= Identifier("a") 100))))"#
         )
     }
 
