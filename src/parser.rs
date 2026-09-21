@@ -47,7 +47,6 @@ impl Parser {
                     self.errors.push(err);
                     self.synchronize();
                 }
-
             }
         }
 
@@ -772,7 +771,6 @@ fun foo(x) {
 
     #[test]
     fn parse_valid_but_useless_function_expr() {
-        assert_eq!(sexpr( "fun (x) { print x; };"), "(expr (fn <anonymous>))");
+        assert_eq!(sexpr("fun (x) { print x; };"), "(expr (fn <anonymous>))");
     }
-
 }

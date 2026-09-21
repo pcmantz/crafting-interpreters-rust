@@ -592,7 +592,5 @@ somefun(3, func);
             ),
             Value::Num(6.0)
         );
-
     }
-
 }
