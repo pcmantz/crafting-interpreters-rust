@@ -43,7 +43,11 @@ impl Parser {
         while !self.is_at_end() {
             match self.declaration() {
                 Ok(decl) => self.statements.push(decl),
-                Err(err) => self.errors.push(err),
+                Err(err) => {
+                    self.errors.push(err);
+                    self.synchronize();
+                }
+
             }
         }
 
