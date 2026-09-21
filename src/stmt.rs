@@ -2,9 +2,11 @@
  *
  */
 
+use crate::function::FunctionDef;
 use crate::prelude::*;
 
 use crate::expr::*;
+use crate::function::*;
 use crate::token::*;
 
 #[derive(Debug, Clone)]
@@ -77,8 +79,8 @@ impl fmt::Display for Stmt {
                 f,
                 "(fun {} ({}) {})",
                 s.name.lexeme,
-                s.params.iter().map(|p| &p.lexeme).join(" "),
-                s.statements.iter().join(""),
+                s.def.params.iter().map(|p| &p.lexeme).join(" "),
+                s.def.statements.iter().join(""),
             ),
             Stmt::Break(s) => write!(f, "(break)"),
         }
@@ -127,8 +129,7 @@ impl Stmt {
     pub fn function(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> Stmt {
         Stmt::Function(FunctionStmt {
             name,
-            params,
-            statements,
+            def: Rc::new(FunctionDef { params, statements }),
         })
     }
 
@@ -180,8 +181,7 @@ pub struct WhileStmt {
 #[derive(Debug, Clone)]
 pub struct FunctionStmt {
     pub name: Token,
-    pub params: Vec<Token>,
-    pub statements: Vec<Stmt>,
+    pub def: Rc<FunctionDef>,
 }
 
 #[derive(Debug, Clone)]

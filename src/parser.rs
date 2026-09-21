@@ -2,6 +2,8 @@
  *
  */
 
+use std::arch::x86_64::_SIDD_MASKED_NEGATIVE_POLARITY;
+
 use crate::prelude::*;
 
 use crate::error::*;
@@ -62,7 +64,13 @@ impl Parser {
             }
             TokenType::Fun => {
                 self.consume(TokenType::Fun)?;
-                self.function_declaration()
+
+                if self.peek().ty == TokenType::LeftBrace {
+                    // TODO: anonymous function expression
+                    todo!()
+                } else {
+                    self.function_declaration()
+                }
             }
             _ => self.statement(),
         }
@@ -85,24 +93,10 @@ impl Parser {
         /* Function name */
         let name = self.consume_identifier()?;
 
-        /* Params */
-        self.consume(TokenType::LeftParen)?;
-        let mut params = Vec::new();
-        if !self.check(&TokenType::RightParen) {
-            loop {
-                if params.len() > 255 {
-                    return Err(Error::too_many_arguments(self.peek()));
-                }
-
-                let param = self.consume_identifier()?;
-                params.push(param);
-
-                if !self.matches(&[TokenType::Comma]) {
-                    break;
-                }
-            }
-        }
-        self.consume(TokenType::RightParen)?;
+        /* Function Parameters */
+        let _ = self.consume(TokenType::LeftParen)?;
+        let params = self.consume_function_parameters()?;
+        let _ = self.consume(TokenType::RightParen)?;
 
         /* Function body */
         self.consume(TokenType::LeftBrace)?;
@@ -447,6 +441,8 @@ impl Parser {
 
             TokenType::Identifier(_) => Ok(Expr::variable(token.clone())),
 
+            TokenType::Fun => self.function_expr(),
+
             /* NOTE: This tries to pull a value, otherwise it errors. May have to
              * explode into match later.
              */
@@ -454,6 +450,19 @@ impl Parser {
                 .map(Expr::literal)
                 .ok_or_else(|| Error::missing_expression(&token, "Expected primary expression.")),
         }
+    }
+
+    fn function_expr(&mut self) -> Result<Expr, Error> {
+        /* Function Parameters */
+        let _ = self.consume(TokenType::LeftParen)?;
+        let params = self.consume_function_parameters()?;
+        let _ = self.consume(TokenType::RightParen)?;
+
+        /* Function body */
+        self.consume(TokenType::LeftBrace)?;
+        let statements = self.block()?;
+
+        Ok(Expr::function(params, statements))
     }
 
     /* Helper Functions */
@@ -475,6 +484,26 @@ impl Parser {
                 self.peek(),
             ))
         }
+    }
+
+    fn consume_function_parameters(&mut self) -> Result<Vec<Token>, Error> {
+        let mut params = Vec::new();
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if params.len() > 255 {
+                    return Err(Error::too_many_arguments(self.peek()));
+                }
+
+                let param = self.consume_identifier()?;
+                params.push(param);
+
+                if !self.matches(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        Ok(params)
     }
 
     fn synchronize(&mut self) {

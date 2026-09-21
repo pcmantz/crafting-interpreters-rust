@@ -6,6 +6,7 @@ use crate::prelude::*;
 
 use crate::environment::*;
 use crate::error::*;
+use crate::expr::*;
 use crate::function::*;
 use crate::stmt::*;
 use crate::token::*;
@@ -33,9 +34,17 @@ impl Callable for CallableKind {
 }
 
 impl CallableKind {
-    fn name(&self) -> &str  {
+    fn name(&self) -> &str {
         match self {
-            CallableKind::User(f) => &f.statement.name.lexeme,
+            CallableKind::User(f) => {
+                let name = &f.name;
+
+                match name {
+                    Some(val) => &val,
+                    None => "<anonymous>".into(),
+                }
+            }
+
             CallableKind::Native(f) => &f.name,
         }
     }
@@ -88,8 +97,21 @@ impl Value {
         }
     }
 
-    pub fn function(statement: FunctionStmt) -> Value {
-        let func = Function { statement: Rc::new(statement) };
+    pub fn function_from_expr(expr: FunctionExpr) -> Value {
+        let func = Function {
+            name: None,
+            def: Rc::clone(&expr.def),
+        };
+        let kind = CallableKind::User(func);
+
+        Value::Fun(Rc::new(kind))
+    }
+
+    pub fn function_from_stmt(stmt: FunctionStmt) -> Value {
+        let func = Function {
+            name: Some(stmt.name.lexeme),
+            def: Rc::clone(&stmt.def),
+        };
         let kind = CallableKind::User(func);
 
         Value::Fun(Rc::new(kind))

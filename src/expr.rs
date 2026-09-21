@@ -4,6 +4,8 @@
 
 use crate::prelude::*;
 
+use crate::function::*;
+use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
@@ -17,6 +19,7 @@ pub enum Expr {
     Binary(BinaryExpr),
     Call(CallExpr),
     Grouping(GroupingExpr),
+    Function(FunctionExpr),
 }
 
 impl fmt::Display for Expr {
@@ -30,6 +33,7 @@ impl fmt::Display for Expr {
             Expr::Variable(e) => write!(f, "{}", e.name),
             Expr::Assign(e) => write!(f, "(= {} {})", e.name, e.expression),
             Expr::Call(e) => write!(f, "({} {})", e.callee, e.arguments.iter().join(" ")),
+            Expr::Function(e) => todo!(),
         }
     }
 }
@@ -86,6 +90,12 @@ impl Expr {
             expression: Box::new(expr),
         })
     }
+
+    pub fn function(params: Vec<Token>, statements: Vec<Stmt>) -> Expr {
+        Expr::Function(FunctionExpr {
+            def: Rc::new(FunctionDef { params, statements }),
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -134,4 +144,9 @@ pub struct VariableExpr {
 pub struct AssignExpr {
     pub name: Token,
     pub expression: Box<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionExpr {
+    pub def: Rc<FunctionDef>,
 }

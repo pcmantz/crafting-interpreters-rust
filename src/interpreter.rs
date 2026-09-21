@@ -45,7 +45,7 @@ impl Control {
         match self {
             Control::Return {
                 keyword: k,
-                value: v,
+                value: _v,
             } => Error::runtime(&k, "return outside function call."),
             Control::Break { keyword: k } => Error::runtime(&k, "break outside loop."),
             Control::Error(e) => e,
@@ -145,7 +145,7 @@ fn while_statement(env: &Environment, stmt: &WhileStmt) -> ExecutionResult {
     {
         match execute(env, &stmt.body) {
             Ok(_) => {}
-            Err(Control::Break { keyword }) => break,
+            Err(Control::Break { .. }) => break,
             Err(Control::Error(e)) => return Err(Control::Error(e)),
             Err(Control::Return { keyword, value }) => {
                 return Err(Control::Return { keyword, value });
@@ -157,7 +157,7 @@ fn while_statement(env: &Environment, stmt: &WhileStmt) -> ExecutionResult {
 }
 
 fn function_statement(env: &Environment, stmt: &FunctionStmt) -> ExecutionResult {
-    let val = Value::function(stmt.clone());
+    let val = Value::function_from_stmt(stmt.clone());
     env.define(&stmt.name.lexeme, val);
 
     Ok(Value::Nil)
@@ -173,6 +173,7 @@ fn evaluate(env: &Environment, expr: &Expr) -> ExecutionResult {
         Expr::Binary(e) => eval_binary(env, e),
         Expr::Call(e) => eval_call(env, e),
         Expr::Grouping(e) => evaluate(env, &e.expression),
+        Expr::Function(e) => eval_function(env, e),
     }
 }
 
@@ -293,6 +294,12 @@ fn eval_call(env: &Environment, expr: &CallExpr) -> ExecutionResult {
         Value::Fun(fun) => fun.call(env, &arguments).map_err(Control::from),
         _ => Err(Control::Error(Error::value_not_callable(&expr.paren))),
     }
+}
+
+fn eval_function(_env: &Environment, expr: &FunctionExpr) -> ExecutionResult {
+    let val = Value::function_from_expr(expr.clone());
+
+    Ok(val)
 }
 
 /* Helpers */
@@ -567,6 +574,25 @@ x;
     #[test]
     fn interpret_clock_native_function() {
         assert!(matches!(eval("clock();"), Value::Num(n) if n > 0.0));
+    }
+
+    #[test]
+    fn interpret_first_class_functions() {
+        assert_eq!(
+            eval(
+                r#"
+var func = fun (x) { return x + 3; };
+
+fun somefun (x, fn) {
+    return fn(x);
+}
+
+somefun(3, func);
+"#
+            ),
+            Value::Num(6.0)
+        );
+
     }
 
 }
