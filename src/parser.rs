@@ -2,8 +2,6 @@
  *
  */
 
-use std::arch::x86_64::_SIDD_MASKED_NEGATIVE_POLARITY;
-
 use crate::prelude::*;
 
 use crate::error::*;
@@ -63,13 +61,11 @@ impl Parser {
                 self.var_declaration()
             }
             TokenType::Fun => {
-                self.consume(TokenType::Fun)?;
-
-                if self.peek().ty == TokenType::LeftBrace {
-                    // TODO: anonymous function expression
-                    todo!()
-                } else {
+                if matches!(self.next().ty, TokenType::Identifier(_)) {
+                    self.consume(TokenType::Fun)?;
                     self.function_declaration()
+                } else {
+                    self.statement()
                 }
             }
             _ => self.statement(),
@@ -769,4 +765,10 @@ fun foo(x) {
             r#"(fun foo (x) (expr (= Identifier("y") (+ Identifier("x") 10)))(print Identifier("y")))"#
         )
     }
+
+    #[test]
+    fn parse_valid_but_useless_function_expr() {
+        assert_eq!(sexpr( "fun (x) { print x; };"), "(expr (fn <anonymous>))");
+    }
+
 }

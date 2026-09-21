@@ -33,7 +33,7 @@ impl fmt::Display for Expr {
             Expr::Variable(e) => write!(f, "{}", e.name),
             Expr::Assign(e) => write!(f, "(= {} {})", e.name, e.expression),
             Expr::Call(e) => write!(f, "({} {})", e.callee, e.arguments.iter().join(" ")),
-            Expr::Function(e) => todo!(),
+            Expr::Function(e) => write!(f, "(fn <anonymous>)"),
         }
     }
 }
