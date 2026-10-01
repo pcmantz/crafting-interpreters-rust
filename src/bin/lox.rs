@@ -17,17 +17,17 @@ struct Cli {
 }
 
 struct Lox {
-    env: Environment,
+    interpreter: Interpreter,
 }
 
 impl Lox {
     pub fn new() -> Self {
         Self {
-            env: Environment::global(),
+            interpreter: Interpreter::new(),
         }
     }
 
-    fn run(mut self, args: Cli) -> Result<()> {
+    fn run(&mut self, args: Cli) -> Result<()> {
         if let Some(file) = args.file {
             self.run_file(file)
         } else {
@@ -65,11 +65,11 @@ impl Lox {
         Ok(())
     }
 
-    fn run_code(&self, code: String) -> color_eyre::Result<Value> {
+    fn run_code(&mut self, code: String) -> color_eyre::Result<Value> {
         let tokens = scanner::scan(code)?;
         let statements = parser::parse(tokens)?;
 
-        Ok(interpreter::run(&self.env, statements)?)
+        Ok(self.interpreter.run(statements)?)
     }
 }
 
@@ -77,7 +77,7 @@ fn main() -> Result<()> {
     let _ = color_eyre::install();
 
     let args = Cli::parse();
-    let lox = Lox::new();
+    let mut lox = Lox::new();
 
     lox.run(args)
 }

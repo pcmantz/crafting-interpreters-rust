@@ -4,12 +4,13 @@
 
 use crate::prelude::*;
 
-use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
 use crate::function::*;
 use crate::stmt::*;
 use crate::token::*;
+
+use crate::interpreter::*;
 
 #[derive(Debug, Clone)]
 pub enum CallableKind {
@@ -25,10 +26,10 @@ impl Callable for CallableKind {
         }
     }
 
-    fn call(&self, env: &Environment, args: &[Value]) -> Result<Value, Error> {
+    fn call(&self, interpreter: &mut Interpreter, args: &[Value]) -> Result<Value, Error> {
         match self {
-            CallableKind::User(f) => f.call(env, args),
-            CallableKind::Native(f) => f.call(env, args),
+            CallableKind::User(f) => f.call(interpreter, args),
+            CallableKind::Native(f) => f.call(interpreter, args),
         }
     }
 }

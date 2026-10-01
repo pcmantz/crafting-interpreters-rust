@@ -55,278 +55,293 @@ impl Control {
 
 type ExecutionResult = Result<Value, Control>;
 
-/// Interpret a lox program.
-pub fn run(env: &Environment, program: Program) -> Result<Value, Error> {
-    execute_statements(env, &program.0).map_err(Control::into_error)
+pub struct Interpreter {
+    pub env: Environment,
 }
 
-/// Interpret a lox statement.
-pub fn interpret(env: &Environment, statement: &Stmt) -> Result<Value, Error> {
-    execute(env, statement).map_err(Control::into_error)
-}
-
-fn execute(env: &Environment, stmt: &Stmt) -> ExecutionResult {
-    match stmt {
-        Stmt::Print(stmt) => print_statement(env, stmt),
-        Stmt::Expression(stmt) => evaluate(env, &stmt.expression),
-        Stmt::Var(stmt) => var_statement(env, stmt),
-        Stmt::Block(stmt) => block_statement(env, stmt),
-        Stmt::If(stmt) => if_statement(env, stmt),
-        Stmt::Return(stmt) => return_statement(env, stmt),
-        Stmt::Break(stmt) => break_statement(env, stmt),
-        Stmt::While(stmt) => while_statement(env, stmt),
-        Stmt::Function(stmt) => function_statement(env, stmt),
-    }
-}
-
-fn print_statement(env: &Environment, stmt: &PrintStmt) -> ExecutionResult {
-    let value = evaluate(env, &stmt.expression)?;
-    println!("{}", value);
-    Ok(Value::Nil)
-}
-
-fn var_statement(env: &Environment, stmt: &VarStmt) -> ExecutionResult {
-    let value = match &stmt.initializer {
-        Some(init) => evaluate(env, init)?,
-        None => Value::Nil,
-    };
-
-    env.define(&stmt.name.lexeme, value);
-
-    Ok(Value::Nil)
-}
-
-fn block_statement(env: &Environment, stmt: &BlockStmt) -> ExecutionResult {
-    let block_env = env.child();
-    execute_statements(&block_env, &stmt.statements)
-}
-
-/* NOTE: See how to make sharing this crate-only */
-pub fn execute_statements(env: &Environment, statements: &[Stmt]) -> ExecutionResult {
-    let mut res = Value::Nil;
-    for statement in statements {
-        res = execute(env, statement)?;
-    }
-
-    Ok(res)
-}
-
-fn if_statement(env: &Environment, stmt: &IfStmt) -> ExecutionResult {
-    let val = evaluate(env, &stmt.condition)?;
-
-    if is_truthy(&val) {
-        execute(env, &stmt.then_branch)
-    } else if let Some(else_branch) = &stmt.else_branch {
-        execute(env, else_branch)
-    } else {
-        Ok(Value::Nil) /* nothing runs */
-    }
-}
-
-fn return_statement(env: &Environment, stmt: &ReturnStmt) -> ExecutionResult {
-    let keyword = stmt.keyword.clone();
-    let value = match &stmt.value {
-        Some(expr) => evaluate(env, &expr)?,
-        None => Value::Nil,
-    };
-
-    Err(Control::Return { keyword, value })
-}
-
-fn break_statement(env: &Environment, stmt: &BreakStmt) -> ExecutionResult {
-    let keyword = stmt.keyword.clone();
-
-    Err(Control::Break { keyword })
-}
-
-fn while_statement(env: &Environment, stmt: &WhileStmt) -> ExecutionResult {
-    while let cond = evaluate(env, &stmt.condition)?
-        && is_truthy(&cond)
-    {
-        match execute(env, &stmt.body) {
-            Ok(_) => {}
-            Err(Control::Break { .. }) => break,
-            Err(Control::Error(e)) => return Err(Control::Error(e)),
-            Err(Control::Return { keyword, value }) => {
-                return Err(Control::Return { keyword, value });
-            }
+impl Interpreter {
+    pub fn new() -> Self {
+        Self {
+            env: Environment::global(),
         }
     }
 
-    Ok(Value::Nil)
-}
-
-fn function_statement(env: &Environment, stmt: &FunctionStmt) -> ExecutionResult {
-    let val = Value::function_from_stmt(stmt.clone());
-    env.define(&stmt.name.lexeme, val);
-
-    Ok(Value::Nil)
-}
-
-fn evaluate(env: &Environment, expr: &Expr) -> ExecutionResult {
-    match expr {
-        Expr::Literal(e) => Ok(e.value.clone()),
-        Expr::Logical(e) => eval_logical(env, e),
-        Expr::Variable(e) => eval_variable(env, e),
-        Expr::Assign(e) => eval_assign(env, e),
-        Expr::Unary(e) => eval_unary(env, e),
-        Expr::Binary(e) => eval_binary(env, e),
-        Expr::Call(e) => eval_call(env, e),
-        Expr::Grouping(e) => evaluate(env, &e.expression),
-        Expr::Function(e) => eval_function(env, e),
+    /// Interpret a lox program.
+    pub fn run(&mut self, program: Program) -> Result<Value, Error> {
+        self.execute_statements(&program.0)
+            .map_err(Control::into_error)
     }
-}
 
-fn eval_logical(env: &Environment, expr: &LogicalExpr) -> ExecutionResult {
-    let left = evaluate(env, &expr.left)?;
-
-    match expr.operator.ty {
-        TokenType::And => {
-            if !is_truthy(&left) {
-                return Ok(left);
-            }
+    fn execute(&mut self, stmt: &Stmt) -> ExecutionResult {
+        match stmt {
+            Stmt::Print(stmt) => self.print_statement(stmt),
+            Stmt::Expression(stmt) => self.evaluate(&stmt.expression),
+            Stmt::Var(stmt) => self.var_statement(stmt),
+            Stmt::Block(stmt) => self.block_statement(stmt),
+            Stmt::If(stmt) => self.if_statement(stmt),
+            Stmt::Return(stmt) => self.return_statement(stmt),
+            Stmt::Break(stmt) => self.break_statement(stmt),
+            Stmt::While(stmt) => self.while_statement(stmt),
+            Stmt::Function(stmt) => self.function_statement(stmt),
         }
-        TokenType::Or => {
-            if is_truthy(&left) {
-                return Ok(left);
+    }
+
+    fn print_statement(&mut self, stmt: &PrintStmt) -> ExecutionResult {
+        let value = self.evaluate(&stmt.expression)?;
+        println!("{}", value);
+        Ok(Value::Nil)
+    }
+
+    fn var_statement(&mut self, stmt: &VarStmt) -> ExecutionResult {
+        let value = match &stmt.initializer {
+            Some(init) => self.evaluate(init)?,
+            None => Value::Nil,
+        };
+
+        self.env.define(&stmt.name.lexeme, value);
+
+        Ok(Value::Nil)
+    }
+
+    fn block_statement(&mut self, stmt: &BlockStmt) -> ExecutionResult {
+        let child = self.env.child();
+        let parent = child.enclosing().unwrap();
+
+        self.env = child;
+        let res = self.execute_statements(&stmt.statements);
+        self.env = parent;
+
+        res
+    }
+
+    /* NOTE: See how to make sharing this crate-only */
+    pub fn execute_statements(&mut self, statements: &[Stmt]) -> ExecutionResult {
+        let mut res = Value::Nil;
+
+        for statement in statements {
+            res = self.execute(statement)?;
+        }
+
+        Ok(res)
+    }
+
+    fn if_statement(&mut self, stmt: &IfStmt) -> ExecutionResult {
+        let cond = self.evaluate(&stmt.condition)?;
+
+        if Self::is_truthy(&cond) {
+            self.execute(&stmt.then_branch)
+        } else if let Some(else_branch) = &stmt.else_branch {
+            self.execute(else_branch)
+        } else {
+            Ok(Value::Nil) /* nothing runs */
+        }
+    }
+
+    fn return_statement(&mut self, stmt: &ReturnStmt) -> ExecutionResult {
+        let keyword = stmt.keyword.clone();
+        let value = match &stmt.value {
+            Some(expr) => self.evaluate(&expr)?,
+            None => Value::Nil,
+        };
+
+        Err(Control::Return { keyword, value })
+    }
+
+    fn break_statement(&self, stmt: &BreakStmt) -> ExecutionResult {
+        let keyword = stmt.keyword.clone();
+
+        Err(Control::Break { keyword })
+    }
+
+    fn while_statement(&mut self, stmt: &WhileStmt) -> ExecutionResult {
+        while let cond = self.evaluate(&stmt.condition)?
+            && Self::is_truthy(&cond)
+        {
+            match self.execute(&stmt.body) {
+                Ok(_) => {}
+                Err(Control::Break { .. }) => break,
+                Err(Control::Error(e)) => return Err(Control::Error(e)),
+                Err(Control::Return { keyword, value }) => {
+                    return Err(Control::Return { keyword, value });
+                }
             }
         }
 
-        /* TODO: Can insert NAND or XOR in here*/
-        _ => unreachable!(),
+        Ok(Value::Nil)
     }
 
-    evaluate(env, &expr.right)
-}
+    fn function_statement(&self, stmt: &FunctionStmt) -> ExecutionResult {
+        let val = Value::function_from_stmt(stmt.clone());
+        self.env.define(&stmt.name.lexeme, val);
 
-fn eval_variable(env: &Environment, expr: &VariableExpr) -> ExecutionResult {
-    env.get(&expr.name.lexeme).ok_or_else(|| {
-        Error::runtime(
-            &expr.name,
-            format!("Undefined variable '{}'", &expr.name.lexeme),
-        )
-        .into()
-    })
-}
+        Ok(Value::Nil)
+    }
 
-fn eval_assign(env: &Environment, expr: &AssignExpr) -> ExecutionResult {
-    let value = evaluate(env, &expr.expression)?;
-
-    env.assign(&expr.name.lexeme, value).ok_or_else(|| {
-        Error::runtime(
-            &expr.name,
-            format!("Undefined variable '{}'", &expr.name.lexeme),
-        )
-        .into()
-    })
-}
-
-fn eval_unary(env: &Environment, expr: &UnaryExpr) -> ExecutionResult {
-    let right = evaluate(env, &expr.right)?;
-
-    match expr.operator.ty {
-        TokenType::Minus => {
-            let a = as_number(&right, &expr.operator)?;
-
-            Ok(Value::Num(-a))
+    fn evaluate(&mut self, expr: &Expr) -> ExecutionResult {
+        match expr {
+            Expr::Literal(e) => Ok(e.value.clone()),
+            Expr::Logical(e) => self.eval_logical(e),
+            Expr::Variable(e) => self.eval_variable(e),
+            Expr::Assign(e) => self.eval_assign(e),
+            Expr::Unary(e) => self.eval_unary(e),
+            Expr::Binary(e) => self.eval_binary(e),
+            Expr::Call(e) => self.eval_call(e),
+            Expr::Grouping(e) => self.evaluate(&e.expression),
+            Expr::Function(e) => self.eval_function(e),
         }
-        TokenType::Bang => Ok(Value::Bool(!is_truthy(&right))),
-
-        _ => unreachable!(),
     }
-}
 
-fn eval_binary(env: &Environment, expr: &BinaryExpr) -> ExecutionResult {
-    let left = evaluate(env, expr.left.as_ref())?;
-    let right = evaluate(env, expr.right.as_ref())?;
+    fn eval_logical(&mut self, expr: &LogicalExpr) -> ExecutionResult {
+        let left = self.evaluate(&expr.left)?;
 
-    match expr.operator.ty {
-        /* Special Case: Needs to handle strings and numbers */
-        TokenType::Plus => match (&left, &right) {
-            (Value::Num(a), Value::Num(b)) => Ok(Value::Num(a + b)),
-            (Value::Str(a), Value::Str(b)) => Ok(Value::Str(format!("{a}{b}"))),
-            _ => Err(Control::Error(Error::runtime(
-                &expr.operator,
-                "Operands must be numbers.",
-            ))),
-        },
+        match expr.operator.ty {
+            TokenType::And => {
+                if !Self::is_truthy(&left) {
+                    return Ok(left);
+                }
+            }
+            TokenType::Or => {
+                if Self::is_truthy(&left) {
+                    return Ok(left);
+                }
+            }
 
-        TokenType::EqualEqual => Ok(Value::Bool(is_equal(&left, &right))),
-        TokenType::BangEqual => Ok(Value::Bool(!is_equal(&left, &right))),
-
-        TokenType::Minus
-        | TokenType::Slash
-        | TokenType::Star
-        | TokenType::Greater
-        | TokenType::GreaterEqual
-        | TokenType::Less
-        | TokenType::LessEqual => {
-            let (a, b) = as_numbers(&left, &right, &expr.operator)?;
-
-            Ok(match expr.operator.ty {
-                TokenType::Minus => Value::Num(a - b),
-                TokenType::Slash => Value::Num(a / b),
-                TokenType::Star => Value::Num(a * b),
-                TokenType::Greater => Value::Bool(a > b),
-                TokenType::GreaterEqual => Value::Bool(a >= b),
-                TokenType::Less => Value::Bool(a < b),
-                TokenType::LessEqual => Value::Bool(a <= b),
-
-                /* Guaranteed by the match one level up */
-                _ => unreachable!(),
-            })
+            /* TODO: Can insert NAND or XOR in here*/
+            _ => unreachable!(),
         }
 
-        _ => unreachable!(),
-    }
-}
-
-fn eval_call(env: &Environment, expr: &CallExpr) -> ExecutionResult {
-    let callee = evaluate(env, expr.callee.as_ref())?;
-
-    let mut arguments = Vec::new();
-    for argument in expr.arguments.iter() {
-        let arg = evaluate(env, &argument)?;
-        arguments.push(arg);
+        self.evaluate(&expr.right)
     }
 
-    match callee {
-        Value::Fun(fun) => fun.call(env, &arguments).map_err(Control::from),
-        _ => Err(Control::Error(Error::value_not_callable(&expr.paren))),
+    fn eval_variable(&self, expr: &VariableExpr) -> ExecutionResult {
+        self.env.get(&expr.name.lexeme).ok_or_else(|| {
+            Error::runtime(
+                &expr.name,
+                format!("Undefined variable '{}'", &expr.name.lexeme),
+            )
+            .into()
+        })
     }
-}
 
-fn eval_function(_env: &Environment, expr: &FunctionExpr) -> ExecutionResult {
-    let val = Value::function_from_expr(expr.clone());
+    fn eval_assign(&mut self, expr: &AssignExpr) -> ExecutionResult {
+        let value = self.evaluate(&expr.expression)?;
 
-    Ok(val)
-}
-
-/* Helpers */
-
-fn as_numbers(left: &Value, right: &Value, operator: &Token) -> Result<(f64, f64), Error> {
-    match (left, right) {
-        (Value::Num(a), Value::Num(b)) => Ok((*a, *b)),
-        _ => Err(Error::runtime(operator, "Operands must be numbers.")),
+        self.env.assign(&expr.name.lexeme, value).ok_or_else(|| {
+            Error::runtime(
+                &expr.name,
+                format!("Undefined variable '{}'", &expr.name.lexeme),
+            )
+            .into()
+        })
     }
-}
 
-fn as_number(right: &Value, operator: &Token) -> Result<f64, Error> {
-    match right {
-        Value::Num(a) => Ok(*a),
-        _ => Err(Error::runtime(operator, "Operand must be a number.")),
+    fn eval_unary(&mut self, expr: &UnaryExpr) -> ExecutionResult {
+        let right = self.evaluate(&expr.right)?;
+
+        match expr.operator.ty {
+            TokenType::Minus => {
+                let a = Self::as_number(&right, &expr.operator)?;
+
+                Ok(Value::Num(-a))
+            }
+            TokenType::Bang => Ok(Value::Bool(!Self::is_truthy(&right))),
+
+            _ => unreachable!(),
+        }
     }
-}
 
-fn is_truthy(val: &Value) -> bool {
-    !matches!(val, Value::Bool(false) | Value::Nil)
-}
+    fn eval_binary(&mut self, expr: &BinaryExpr) -> ExecutionResult {
+        let left = self.evaluate(expr.left.as_ref())?;
+        let right = self.evaluate(expr.right.as_ref())?;
 
-fn is_equal(left: &Value, right: &Value) -> bool {
-    match (left, right) {
-        (Value::Nil, Value::Nil) => true,
-        (Value::Nil, _) => false,
-        (a, b) => a == b,
+        match expr.operator.ty {
+            /* Special Case: Needs to handle strings and numbers */
+            TokenType::Plus => match (&left, &right) {
+                (Value::Num(a), Value::Num(b)) => Ok(Value::Num(a + b)),
+                (Value::Str(a), Value::Str(b)) => Ok(Value::Str(format!("{a}{b}"))),
+                _ => Err(Control::Error(Error::runtime(
+                    &expr.operator,
+                    "Operands must be numbers.",
+                ))),
+            },
+
+            TokenType::EqualEqual => Ok(Value::Bool(Self::is_equal(&left, &right))),
+            TokenType::BangEqual => Ok(Value::Bool(!Self::is_equal(&left, &right))),
+
+            TokenType::Minus
+            | TokenType::Slash
+            | TokenType::Star
+            | TokenType::Greater
+            | TokenType::GreaterEqual
+            | TokenType::Less
+            | TokenType::LessEqual => {
+                let (a, b) = Self::as_numbers(&left, &right, &expr.operator)?;
+
+                Ok(match expr.operator.ty {
+                    TokenType::Minus => Value::Num(a - b),
+                    TokenType::Slash => Value::Num(a / b),
+                    TokenType::Star => Value::Num(a * b),
+                    TokenType::Greater => Value::Bool(a > b),
+                    TokenType::GreaterEqual => Value::Bool(a >= b),
+                    TokenType::Less => Value::Bool(a < b),
+                    TokenType::LessEqual => Value::Bool(a <= b),
+
+                    /* Guaranteed by the match one level up */
+                    _ => unreachable!(),
+                })
+            }
+
+            _ => unreachable!(),
+        }
+    }
+
+    fn eval_call(&mut self, expr: &CallExpr) -> ExecutionResult {
+        let callee = self.evaluate(expr.callee.as_ref())?;
+
+        let mut arguments = Vec::new();
+        for argument in expr.arguments.iter() {
+            let arg = self.evaluate(&argument)?;
+            arguments.push(arg);
+        }
+
+        match callee {
+            Value::Fun(fun) => fun.call(self, &arguments).map_err(Control::from),
+            _ => Err(Control::Error(Error::value_not_callable(&expr.paren))),
+        }
+    }
+
+    fn eval_function(&self, expr: &FunctionExpr) -> ExecutionResult {
+        let val = Value::function_from_expr(expr.clone());
+
+        Ok(val)
+    }
+
+    /* Helpers */
+
+    fn as_numbers(left: &Value, right: &Value, operator: &Token) -> Result<(f64, f64), Error> {
+        match (left, right) {
+            (Value::Num(a), Value::Num(b)) => Ok((*a, *b)),
+            _ => Err(Error::runtime(operator, "Operands must be numbers.")),
+        }
+    }
+
+    fn as_number(right: &Value, operator: &Token) -> Result<f64, Error> {
+        match right {
+            Value::Num(a) => Ok(*a),
+            _ => Err(Error::runtime(operator, "Operand must be a number.")),
+        }
+    }
+
+    fn is_truthy(val: &Value) -> bool {
+        !matches!(val, Value::Bool(false) | Value::Nil)
+    }
+
+    fn is_equal(left: &Value, right: &Value) -> bool {
+        match (left, right) {
+            (Value::Nil, Value::Nil) => true,
+            (Value::Nil, _) => false,
+            (a, b) => a == b,
+        }
     }
 }
 
@@ -343,9 +358,10 @@ mod tests {
         let tokens =
             scanner::scan(src.to_string()).unwrap_or_else(|e| panic!("scanning failed:\n{e}"));
         let statements = parser::parse(tokens).unwrap_or_else(|e| panic!("parsing failed:\n{e}"));
-        let env = Environment::global();
 
-        run(&env, statements)
+        let mut interpreter = Interpreter::new();
+
+        interpreter.run(statements)
     }
 
     fn eval(src: &str) -> Value {

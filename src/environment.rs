@@ -4,9 +4,7 @@
 
 use crate::prelude::*;
 
-use crate::error::*;
 use crate::native::*;
-use crate::token::*;
 use crate::value::*;
 
 /// Inner body implementation of the Environment.
@@ -49,6 +47,10 @@ impl Environment {
             enclosing: Some(self.clone()),
             ..Default::default()
         }))
+    }
+
+    pub fn enclosing(&self) -> Option<Environment> {
+        self.0.enclosing.clone()
     }
 
     pub fn define(&self, name: &str, value: Value) {
