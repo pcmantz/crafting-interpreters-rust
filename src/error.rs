@@ -9,8 +9,7 @@ use crate::token::*;
 #[derive(Debug, Clone)]
 pub struct Error {
     kind: ErrorKind,
-    line: usize,
-    col: i64,
+    pos: Pos,
 }
 
 #[derive(Debug, Clone)]
@@ -26,19 +25,20 @@ pub enum ErrorKind {
         message: String,
     },
     Runtime {
-        token: Token,
         message: String,
     },
     InvalidAssignment {},
     TooManyArguments {
         argument: Token,
     },
-    ValueNotCallable {},
+    ValueNotCallable {
+        // called: Token,
+    },
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[line {}:{}] Error: ", self.line, self.col)?;
+        write!(f, "[offset: {}] Error: ", self.pos.offset)?;
 
         match &self.kind {
             ErrorKind::WrongToken { expected, found } => {
@@ -58,13 +58,12 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl Error {
-    pub fn scanner(message: impl Into<String>, line: usize, col: i64) -> Error {
+    pub fn scanner(message: impl Into<String>, pos: Pos) -> Error {
         Error {
             kind: ErrorKind::ScannerError {
                 message: message.into(),
             },
-            line,
-            col,
+            pos: pos,
         }
     }
 
@@ -74,8 +73,7 @@ impl Error {
                 expected,
                 found: found.ty.clone(),
             },
-            line: found.line,
-            col: found.col,
+            pos: found.start,
         }
     }
 
@@ -84,27 +82,23 @@ impl Error {
             kind: ErrorKind::MissingExpression {
                 message: message.into(),
             },
-            line: token.line,
-            col: token.col,
+            pos: token.start,
         }
     }
 
     pub fn runtime(token: &Token, message: impl Into<String>) -> Error {
         Error {
             kind: ErrorKind::Runtime {
-                token: token.clone(),
                 message: message.into(),
             },
-            line: token.line,
-            col: token.col,
+            pos: token.start,
         }
     }
 
     pub fn invalid_assignment(token: &Token) -> Error {
         Error {
             kind: ErrorKind::InvalidAssignment {},
-            line: token.line,
-            col: token.col,
+            pos: token.start,
         }
     }
 
@@ -113,18 +107,16 @@ impl Error {
             kind: ErrorKind::TooManyArguments {
                 argument: token.clone(),
             },
-            line: token.line,
-            col: token.col,
+            pos: token.start,
         }
     }
 
-    pub fn value_not_callable(token: &Token) -> Error {
+    pub fn value_not_callable(call: &Token) -> Error {
         Error {
             kind: ErrorKind::ValueNotCallable {
-                // argument: token.clone(),
+                // called // This should be the start of an expr
             },
-            line: token.line,
-            col: token.col,
+            pos: call.start,
         }
     }
 }

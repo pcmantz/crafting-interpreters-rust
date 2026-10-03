@@ -30,6 +30,32 @@ pub fn keyword(kw: &str) -> Option<TokenType> {
     KEYWORDS.get(kw).cloned()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Pos {
+    pub offset: usize,
+}
+
+impl Default for Pos {
+    fn default() -> Self {
+        Self { offset: 0 }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Span {
+    pub start: Pos,
+    pub end: Pos,
+}
+
+impl Span {
+    pub fn to(self, other: Span) -> Span {
+        Span {
+            start: self.start,
+            end: other.end,
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum TokenType {
     // Literals
@@ -102,8 +128,8 @@ impl fmt::Display for TokenType {
 pub struct Token {
     pub ty: TokenType,
     pub lexeme: String,
-    pub line: usize,
-    pub col: i64,
+    pub start: Pos,
+    pub end: Pos,
 }
 
 impl fmt::Display for Token {

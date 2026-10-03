@@ -22,10 +22,8 @@ pub struct Scanner {
     source: Vec<u8>,
     tokens: Vec<Token>,
     err: Option<Error>,
-    start: usize,
-    current: usize,
-    line: usize,
-    col: i64,
+    start: Pos,
+    current: Pos,
 }
 
 impl Default for Scanner {
@@ -34,10 +32,8 @@ impl Default for Scanner {
             source: Vec::new(),
             tokens: Vec::new(),
             err: None,
-            start: 0,
-            current: 0,
-            line: 1,
-            col: -1,
+            start: Pos::default(),
+            current: Pos::default(),
         }
     }
 }
@@ -141,8 +137,7 @@ impl Scanner {
                 } else {
                     self.err = Some(Error::scanner(
                         format!("scanner can't handle {}", c),
-                        self.line,
-                        self.col,
+                        self.start,
                     ))
                 }
             }
@@ -150,17 +145,17 @@ impl Scanner {
     }
 
     fn advance(&mut self) -> char {
-        self.current += 1;
-        self.col += 1;
+        self.current.offset += 1;
+        // self.col += 1;
 
-        char::from(self.source[self.current - 1])
+        char::from(self.source[self.current.offset - 1])
     }
 
     fn peek(&self) -> char {
         if self.done() {
             '\0'
         } else {
-            char::from(self.source[self.current])
+            char::from(self.source[self.current.offset])
         }
     }
 
@@ -175,8 +170,8 @@ impl Scanner {
     }
 
     fn newline(&mut self) {
-        self.col = -1;
-        self.line += 1;
+        // self.col = -1;
+        // self.line += 1;
     }
 
     fn comment(&mut self) {
@@ -214,7 +209,7 @@ impl Scanner {
             }
         }
 
-        self.err = Some(Error::scanner("unterminated comment.", self.line, self.col))
+        self.err = Some(Error::scanner("unterminated comment.", self.start))
     }
 
     fn number(&mut self) {
@@ -230,10 +225,8 @@ impl Scanner {
             }
         }
 
-        let val: f64 = self.source[self.start..self.current]
-            .to_vec()
-            .pipe(String::from_utf8)
-            .unwrap()
+        let val: f64 = self
+            .substr(self.start.offset, self.current.offset)
             .parse()
             .unwrap();
 
@@ -252,8 +245,7 @@ impl Scanner {
         if self.is_at_end() {
             self.err = Some(Error::scanner(
                 "unterminated string.".to_string(),
-                self.line,
-                self.col,
+                self.start,
             ));
 
             return;
@@ -262,10 +254,7 @@ impl Scanner {
         /* consume the closing brace. TODO: error handling here with matches? */
         self.advance();
 
-        let str = self.source[self.start + 1..self.current - 1]
-            .to_vec()
-            .pipe(String::from_utf8)
-            .unwrap();
+        let str = self.substr(self.start.offset + 1, self.current.offset - 1);
 
         self.add_token(TokenType::Str(str));
     }
@@ -275,7 +264,7 @@ impl Scanner {
             self.advance();
         }
 
-        let str = String::from_utf8(self.source[self.start..self.current].to_vec()).unwrap();
+        let str = self.substr(self.start.offset, self.current.offset);
 
         self.add_token(match keyword(&str) {
             Some(ty) => ty,
@@ -284,19 +273,23 @@ impl Scanner {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        let text = self.source[self.start..self.current]
-            .to_vec()
-            .pipe(String::from_utf8)
-            .expect("source was valid UTF-8");
+        let str = self.substr(self.start.offset, self.current.offset);
 
         let token = Token {
             ty: token_type,
-            lexeme: text,
-            line: self.line,
-            col: self.col,
+            lexeme: str,
+            start: self.start,
+            end: self.current,
         };
 
         self.tokens.push(token);
+    }
+
+    fn substr(&mut self, from: usize, to: usize) -> String {
+        self.source[from..to]
+            .to_vec()
+            .pipe(String::from_utf8)
+            .unwrap()
     }
 
     fn done(&self) -> bool {
@@ -304,7 +297,7 @@ impl Scanner {
     }
 
     fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
+        self.current.offset >= self.source.len()
     }
 
     /* Helpers */
