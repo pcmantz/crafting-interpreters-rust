@@ -9,7 +9,7 @@ use crate::token::*;
 #[derive(Debug, Clone)]
 pub struct Error {
     kind: ErrorKind,
-    pos: Pos,
+    span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -28,9 +28,7 @@ pub enum ErrorKind {
         message: String,
     },
     InvalidAssignment {},
-    TooManyArguments {
-        argument: Token,
-    },
+    TooManyArguments {},
     ValueNotCallable {
         // called: Token,
     },
@@ -38,7 +36,7 @@ pub enum ErrorKind {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[offset: {}] Error: ", self.pos.offset)?;
+        write!(f, "[offset: {}] Error: ", self.span.start.offset)?;
 
         match &self.kind {
             ErrorKind::WrongToken { expected, found } => {
@@ -58,12 +56,12 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl Error {
-    pub fn scanner(message: impl Into<String>, pos: Pos) -> Error {
+    pub fn scanner(message: impl Into<String>, span: Span) -> Error {
         Error {
             kind: ErrorKind::ScannerError {
                 message: message.into(),
             },
-            pos: pos,
+            span,
         }
     }
 
@@ -73,7 +71,7 @@ impl Error {
                 expected,
                 found: found.ty.clone(),
             },
-            pos: found.start,
+            span: found.span,
         }
     }
 
@@ -82,7 +80,7 @@ impl Error {
             kind: ErrorKind::MissingExpression {
                 message: message.into(),
             },
-            pos: token.start,
+            span: token.span,
         }
     }
 
@@ -91,32 +89,30 @@ impl Error {
             kind: ErrorKind::Runtime {
                 message: message.into(),
             },
-            pos: token.start,
+            span: token.span,
         }
     }
 
-    pub fn invalid_assignment(token: &Token) -> Error {
+    pub fn invalid_assignment(span: Span) -> Error {
         Error {
             kind: ErrorKind::InvalidAssignment {},
-            pos: token.start,
+            span,
         }
     }
 
-    pub fn too_many_arguments(token: &Token) -> Error {
+    pub fn too_many_arguments(span: Span) -> Error {
         Error {
-            kind: ErrorKind::TooManyArguments {
-                argument: token.clone(),
-            },
-            pos: token.start,
+            kind: ErrorKind::TooManyArguments {},
+            span,
         }
     }
 
-    pub fn value_not_callable(call: &Token) -> Error {
+    pub fn value_not_callable(span: Span) -> Error {
         Error {
             kind: ErrorKind::ValueNotCallable {
                 // called // This should be the start of an expr
             },
-            pos: call.start,
+            span,
         }
     }
 }

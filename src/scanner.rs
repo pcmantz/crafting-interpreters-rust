@@ -135,10 +135,7 @@ impl Scanner {
                 } else if Self::is_alpha(c) {
                     self.identifier();
                 } else {
-                    self.err = Some(Error::scanner(
-                        format!("scanner can't handle {}", c),
-                        self.start,
-                    ))
+                    self.error(format!("scanner can't handle {}", c));
                 }
             }
         }
@@ -209,7 +206,7 @@ impl Scanner {
             }
         }
 
-        self.err = Some(Error::scanner("unterminated comment.", self.start))
+        self.error("unterminated comment.");
     }
 
     fn number(&mut self) {
@@ -243,10 +240,7 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            self.err = Some(Error::scanner(
-                "unterminated string.".to_string(),
-                self.start,
-            ));
+            self.error("unterminated string.".to_string());
 
             return;
         }
@@ -278,11 +272,23 @@ impl Scanner {
         let token = Token {
             ty: token_type,
             lexeme: str,
-            start: self.start,
-            end: self.current,
+            span: Span {
+                start: self.start,
+                end: self.current,
+            },
         };
 
         self.tokens.push(token);
+    }
+
+    fn error(&mut self, message: impl Into<String>) {
+        self.err = Some(Error::scanner(
+            message.into(),
+            Span {
+                start: self.start,
+                end: self.current,
+            },
+        ))
     }
 
     fn substr(&mut self, from: usize, to: usize) -> String {

@@ -2,8 +2,6 @@
  *
  */
 
-use crate::prelude::*;
-
 use crate::error::*;
 use crate::expr::*;
 use crate::stmt::*;
@@ -293,7 +291,8 @@ impl Parser {
                     Ok(Expr::assign(name, value))
                 }
 
-                _ => Err(Error::invalid_assignment(self.peek())),
+                /* TODO: make this come from expr instead */
+                _ => Err(Error::invalid_assignment(self.peek().span)),
             }
         } else {
             Ok(expr)
@@ -413,7 +412,7 @@ impl Parser {
                 arguments.push(arg);
 
                 if arguments.len() >= 255 {
-                    return Err(Error::too_many_arguments(self.peek()));
+                    return Err(Error::too_many_arguments(self.peek().span));
                 }
 
                 if !self.matches(&[TokenType::Comma]) {
@@ -490,7 +489,7 @@ impl Parser {
         if !self.check(&TokenType::RightParen) {
             loop {
                 if params.len() > 255 {
-                    return Err(Error::too_many_arguments(self.peek()));
+                    return Err(Error::too_many_arguments(self.peek().span));
                 }
 
                 let param = self.consume_identifier()?;

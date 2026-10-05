@@ -306,7 +306,9 @@ impl Interpreter {
 
         match callee {
             Value::Fun(fun) => fun.call(self, &arguments).map_err(Control::from),
-            _ => Err(Control::Error(Error::value_not_callable(&expr.paren))),
+
+            /* TODO: The following should pull the span from the callee, not the paren. needs spans in exprs first. */
+            _ => Err(Control::Error(Error::value_not_callable(expr.paren.span))),
         }
     }
 

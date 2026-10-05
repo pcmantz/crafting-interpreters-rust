@@ -128,8 +128,7 @@ impl fmt::Display for TokenType {
 pub struct Token {
     pub ty: TokenType,
     pub lexeme: String,
-    pub start: Pos,
-    pub end: Pos,
+    pub span: Span,
 }
 
 impl fmt::Display for Token {
