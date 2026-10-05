@@ -30,15 +30,9 @@ pub fn keyword(kw: &str) -> Option<TokenType> {
     KEYWORDS.get(kw).cloned()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Pos {
     pub offset: usize,
-}
-
-impl Default for Pos {
-    fn default() -> Self {
-        Self { offset: 0 }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

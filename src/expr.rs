@@ -10,7 +10,20 @@ use crate::token::*;
 use crate::value::*;
 
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub struct Expr {
+    pub id: u32,
+    pub span: Span,
+    pub kind: ExprKind,
+}
+
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ExprKind {
     Literal(LiteralExpr),
     Logical(LogicalExpr),
     Variable(VariableExpr),
@@ -22,77 +35,77 @@ pub enum Expr {
     Function(FunctionExpr),
 }
 
-impl fmt::Display for Expr {
+impl fmt::Display for ExprKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Expr::Literal(e) => write!(f, "{}", e.value),
-            Expr::Logical(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
-            Expr::Unary(e) => write!(f, "({} {})", e.operator.lexeme, e.right),
-            Expr::Binary(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
-            Expr::Grouping(e) => write!(f, "(group {})", e.expression),
-            Expr::Variable(e) => write!(f, "{}", e.name),
-            Expr::Assign(e) => write!(f, "(= {} {})", e.name, e.expression),
-            Expr::Call(e) => write!(f, "({} {})", e.callee, e.arguments.iter().join(" ")),
-            Expr::Function(e) => write!(f, "(fn <anonymous>)"),
+            ExprKind::Literal(e) => write!(f, "{}", e.value),
+            ExprKind::Logical(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
+            ExprKind::Unary(e) => write!(f, "({} {})", e.operator.lexeme, e.right),
+            ExprKind::Binary(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
+            ExprKind::Grouping(e) => write!(f, "(group {})", e.expression),
+            ExprKind::Variable(e) => write!(f, "{}", e.name),
+            ExprKind::Assign(e) => write!(f, "(= {} {})", e.name, e.expression),
+            ExprKind::Call(e) => write!(f, "({} {})", e.callee, e.arguments.iter().join(" ")),
+            ExprKind::Function(e) => write!(f, "(fn <anonymous>)"),
         }
     }
 }
 
-impl Expr {
-    pub fn literal(value: Value) -> Expr {
-        Expr::Literal(LiteralExpr { value })
+impl ExprKind {
+    pub fn literal(value: Value) -> ExprKind {
+        ExprKind::Literal(LiteralExpr { value })
     }
 
-    pub fn logical(left: Expr, operator: Token, right: Expr) -> Expr {
-        Expr::Logical(LogicalExpr {
+    pub fn logical(left: Expr, operator: Token, right: Expr) -> ExprKind {
+        ExprKind::Logical(LogicalExpr {
             left: Box::new(left),
             operator,
             right: Box::new(right),
         })
     }
 
-    pub fn unary(operator: Token, expr: Expr) -> Expr {
-        Expr::Unary(UnaryExpr {
+    pub fn unary(operator: Token, expr: Expr) -> ExprKind {
+        ExprKind::Unary(UnaryExpr {
             operator,
             right: Box::new(expr),
         })
     }
 
-    pub fn binary(left: Expr, operator: Token, right: Expr) -> Expr {
-        Expr::Binary(BinaryExpr {
+    pub fn binary(left: Expr, operator: Token, right: Expr) -> ExprKind {
+        ExprKind::Binary(BinaryExpr {
             left: Box::new(left),
             operator,
             right: Box::new(right),
         })
     }
 
-    pub fn call(callee: Expr, paren: Token, arguments: Vec<Expr>) -> Expr {
-        Expr::Call(CallExpr {
+    pub fn call(callee: Expr, paren: Token, arguments: Vec<Expr>) -> ExprKind {
+        ExprKind::Call(CallExpr {
             callee: Box::new(callee),
             paren,
             arguments,
         })
     }
 
-    pub fn grouping(expr: Expr) -> Expr {
-        Expr::Grouping(GroupingExpr {
+    pub fn grouping(expr: Expr) -> ExprKind {
+        ExprKind::Grouping(GroupingExpr {
             expression: Box::new(expr),
         })
     }
 
-    pub fn variable(name: Token) -> Expr {
-        Expr::Variable(VariableExpr { name })
+    pub fn variable(name: Token) -> ExprKind {
+        ExprKind::Variable(VariableExpr { name })
     }
 
-    pub fn assign(name: Token, expr: Expr) -> Expr {
-        Expr::Assign(AssignExpr {
+    pub fn assign(name: Token, expr: Expr) -> ExprKind {
+        ExprKind::Assign(AssignExpr {
             name,
             expression: Box::new(expr),
         })
     }
 
-    pub fn function(params: Vec<Token>, statements: Vec<Stmt>) -> Expr {
-        Expr::Function(FunctionExpr {
+    pub fn function(params: Vec<Token>, statements: Vec<Stmt>) -> ExprKind {
+        ExprKind::Function(FunctionExpr {
             def: Rc::new(FunctionDef { params, statements }),
         })
     }

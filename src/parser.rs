@@ -8,6 +8,9 @@ use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeId(u32);
+
 pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseErrors> {
     let parser = Parser::default();
 
@@ -17,6 +20,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseErrors> {
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    next_node_id: u32,
     statements: Vec<Stmt>,
     errors: Vec<Error>,
 }
@@ -26,6 +30,7 @@ impl Default for Parser {
         Self {
             tokens: Vec::new(),
             current: 0,
+            next_node_id: 0,
             statements: Vec::new(),
             errors: Vec::new(),
         }
@@ -464,6 +469,26 @@ impl Parser {
     }
 
     /* Helper Functions */
+
+    fn make_expr(&mut self, start: &Token, kind: ExprKind) -> Expr {
+        Expr {
+            id: self.node_id(),
+            // span: start.span.to(self.tokens[self.current -1]),
+            kind,
+        }
+    }
+
+    fn make_stmt(&mut self, start: &Token, kind: StmtKind) -> Stmt {
+        Stmt {
+            id: self.node_id(),
+            // span: start.to(self.tokens)[self.current - 1],
+        }
+    }
+
+    fn node_id(&mut self) -> u32  {
+
+    }
+
 
     fn consume(&mut self, ty: TokenType) -> Result<Token, Error> {
         if self.check(&ty) {
