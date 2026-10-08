@@ -50,6 +50,9 @@ impl Span {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeId(pub u32);
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum TokenType {
     // Literals

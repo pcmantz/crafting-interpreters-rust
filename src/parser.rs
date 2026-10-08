@@ -2,14 +2,13 @@
  *
  */
 
+use crate::prelude::*;
+
 use crate::error::*;
 use crate::expr::*;
 use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct NodeId(u32);
 
 pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseErrors> {
     let parser = Parser::default();
@@ -20,7 +19,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseErrors> {
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    next_node_id: u32,
+    next_node_id: NodeId,
     statements: Vec<Stmt>,
     errors: Vec<Error>,
 }
@@ -30,7 +29,7 @@ impl Default for Parser {
         Self {
             tokens: Vec::new(),
             current: 0,
-            next_node_id: 0,
+            next_node_id: NodeId(0),
             statements: Vec::new(),
             errors: Vec::new(),
         }
@@ -79,6 +78,7 @@ impl Parser {
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, Error> {
+        let start = self.previous().clone();
         let name = self.consume_identifier()?;
 
         let initializer = if self.matches(&[TokenType::Equal]) {
@@ -88,10 +88,12 @@ impl Parser {
         };
         self.consume(TokenType::Semicolon)?;
 
-        Ok(Stmt::var(name, initializer))
+        Ok(self.make_stmt(&start, StmtKind::var(name, initializer)))
     }
 
     fn function_declaration(&mut self) -> Result<Stmt, Error> {
+        let start = self.previous().clone();
+
         /* Function name */
         let name = self.consume_identifier()?;
 
@@ -104,7 +106,7 @@ impl Parser {
         self.consume(TokenType::LeftBrace)?;
         let statements = self.block()?;
 
-        Ok(Stmt::function(name, params, statements))
+        Ok(self.make_stmt(&start, StmtKind::function(name, params, statements)))
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
@@ -145,6 +147,7 @@ impl Parser {
     }
 
     fn for_statement(&mut self) -> Result<Stmt, Error> {
+        let start = self.previous().clone();
         let _ = self.consume(TokenType::LeftParen)?;
 
         /* Initializer*/
@@ -159,17 +162,33 @@ impl Parser {
         };
 
         /* Condition */
-        let condition = if !self.check(&TokenType::Semicolon) {
+        let parsed_cond = if !self.check(&TokenType::Semicolon) {
             let expr = self.expression()?;
-            self.consume(TokenType::Semicolon)?;
+
             Some(expr)
         } else {
             None
         };
+        let semicolon = self.consume(TokenType::Semicolon)?;
+
+        /* Condition is true if it isn't explicitly set */
+        let cond = match parsed_cond {
+            Some(e) => e,
+            None => self.make_expr(&semicolon, ExprKind::literal(Value::Bool(true))),
+        };
 
         /* Increment */
         let increment = if !self.check(&TokenType::RightParen) {
-            Some(Stmt::expression(self.expression()?))
+            let increment_expr = self.expression()?;
+
+            /* Construct manually to clone the span correctly */
+            let increment_stmt = Stmt {
+                id: self.node_id(),
+                span: increment_expr.span,
+                kind: StmtKind::expression(increment_expr),
+            };
+
+            Some(increment_stmt)
         } else {
             None
         };
@@ -179,24 +198,19 @@ impl Parser {
         /* Body */
         let body = self.statement()?;
 
-        /* Condition is true if it isn't explicitly set */
-        let cond = match condition {
-            Some(stmt) => stmt,
-            None => Expr::literal(Value::Bool(true)),
-        };
-
         /* If present, put the increment statement at the end of the body. */
-        let while_loop = Stmt::r#while(
+        let while_kind = StmtKind::r#while(
             cond,
             match increment {
-                Some(incr) => Stmt::block(vec![body, incr]),
+                Some(incr) => self.make_stmt(&start, StmtKind::block(vec![body, incr])),
                 None => body,
             },
         );
+        let while_loop = self.make_stmt(&start, while_kind);
 
         /* If present, put the initializer before the while loop */
         let for_loop = match initializer {
-            Some(init) => Stmt::block(vec![init, while_loop]),
+            Some(init) => self.make_stmt(&start, StmtKind::block(vec![init, while_loop])),
             None => while_loop,
         };
 
@@ -204,6 +218,8 @@ impl Parser {
     }
 
     fn if_statement(&mut self) -> Result<Stmt, Error> {
+        let start = self.previous().clone();
+
         let _ = self.consume(TokenType::LeftParen)?;
         let condition = self.expression()?;
         let _ = self.consume(TokenType::RightParen)?;
@@ -215,25 +231,30 @@ impl Parser {
             None
         };
 
-        Ok(Stmt::r#if(condition, then_branch, else_branch))
+        Ok(self.make_stmt(&start, StmtKind::r#if(condition, then_branch, else_branch)))
     }
 
     fn print_statement(&mut self) -> Result<Stmt, Error> {
+        let start = self.previous().clone();
+
         let value = self.expression()?;
         self.consume(TokenType::Semicolon)?;
 
-        Ok(Stmt::print(value))
+        Ok(self.make_stmt(&start, StmtKind::print(value)))
     }
 
     fn break_statement(&mut self) -> Result<Stmt, Error> {
         let keyword = self.previous().clone();
+        let start = keyword.clone();
+
         self.consume(TokenType::Semicolon)?;
 
-        Ok(Stmt::r#break(keyword))
+        Ok(self.make_stmt(&start, StmtKind::r#break(keyword)))
     }
 
     fn return_statement(&mut self) -> Result<Stmt, Error> {
         let keyword = self.previous().clone();
+        let start = keyword.clone();
 
         let value = if !self.check(&TokenType::Semicolon) {
             Some(self.expression()?)
@@ -242,21 +263,27 @@ impl Parser {
         };
         self.consume(TokenType::Semicolon)?;
 
-        Ok(Stmt::r#return(keyword, value))
+        Ok(self.make_stmt(&start, StmtKind::r#return(keyword, value)))
     }
 
     fn while_statement(&mut self) -> Result<Stmt, Error> {
+        let start = self.previous().clone();
+
         let _ = self.consume(TokenType::LeftParen)?;
         let condition = self.expression()?;
         let _ = self.consume(TokenType::RightParen)?;
 
         let body = self.statement()?;
 
-        Ok(Stmt::r#while(condition, body))
+        Ok(self.make_stmt(&start, StmtKind::r#while(condition, body)))
     }
 
     fn block_statement(&mut self) -> Result<Stmt, Error> {
-        Ok(Stmt::block(self.block()?))
+        let start = self.previous().clone();
+
+        let kind = StmtKind::block(self.block()?);
+
+        Ok(self.make_stmt(&start, kind))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, Error> {
@@ -273,10 +300,11 @@ impl Parser {
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, Error> {
+        let start = self.peek().clone();
         let expr = self.expression()?;
         self.consume(TokenType::Semicolon)?;
 
-        Ok(Stmt::expression(expr))
+        Ok(self.make_stmt(&start, StmtKind::expression(expr)))
     }
 
     fn expression(&mut self) -> Result<Expr, Error> {
@@ -284,16 +312,17 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, Error> {
+        let start = self.peek().clone();
         let expr = self.logic_or()?;
 
         if self.matches(&[TokenType::Equal]) {
             let _equals = self.previous(); /* don't really need */
             let value = self.assignment()?;
 
-            match expr {
-                Expr::Variable(e) => {
-                    let name = e.name;
-                    Ok(Expr::assign(name, value))
+            match expr.kind {
+                ExprKind::Variable(k) => {
+                    let name = k.name;
+                    Ok(self.make_expr(&start, ExprKind::assign(name, value)))
                 }
 
                 /* TODO: make this come from expr instead */
@@ -305,45 +334,49 @@ impl Parser {
     }
 
     fn logic_or(&mut self) -> Result<Expr, Error> {
+        let start = self.peek().clone();
         let mut expr = self.logic_and()?;
 
         while self.matches(&[TokenType::Or]) {
             let operator = self.previous().clone();
             let right = self.logic_and()?;
 
-            expr = Expr::logical(expr, operator, right);
+            expr = self.make_expr(&start, ExprKind::logical(expr, operator, right));
         }
 
         Ok(expr)
     }
 
     fn logic_and(&mut self) -> Result<Expr, Error> {
+        let start = self.peek().clone();
         let mut expr = self.equality()?;
 
         while self.matches(&[TokenType::And]) {
             let operator = self.previous().clone();
             let right = self.logic_and()?;
 
-            expr = Expr::logical(expr, operator, right);
+            expr = self.make_expr(&start, ExprKind::logical(expr, operator, right));
         }
 
         Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, Error> {
+        let start = self.peek().clone();
         let mut expr: Expr = self.comparison()?;
 
         while self.matches(&[TokenType::EqualEqual, TokenType::BangEqual]) {
             let operator = self.previous().clone();
             let right = self.comparison()?;
 
-            expr = Expr::binary(expr, operator, right);
+            expr = self.make_expr(&start, ExprKind::binary(expr, operator, right));
         }
 
         Ok(expr)
     }
 
     fn comparison(&mut self) -> Result<Expr, Error> {
+        let start = self.peek().clone();
         let mut expr: Expr = self.term()?;
 
         while self.matches(&[
@@ -355,33 +388,35 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.term()?;
 
-            expr = Expr::binary(expr, operator, right);
+            expr = self.make_expr(&start, ExprKind::binary(expr, operator, right));
         }
 
         Ok(expr)
     }
 
     fn term(&mut self) -> Result<Expr, Error> {
+        let start = self.peek().clone();
         let mut expr: Expr = self.factor()?;
 
         while self.matches(&[TokenType::Plus, TokenType::Minus]) {
             let operator = self.previous().clone();
             let right = self.factor()?;
 
-            expr = Expr::binary(expr, operator, right);
+            expr = self.make_expr(&start, ExprKind::binary(expr, operator, right));
         }
 
         Ok(expr)
     }
 
     fn factor(&mut self) -> Result<Expr, Error> {
+        let start = self.peek().clone();
         let mut expr: Expr = self.unary()?;
 
         while self.matches(&[TokenType::Slash, TokenType::Star]) {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
-            expr = Expr::binary(expr, operator, right);
+            expr = self.make_expr(&start, ExprKind::binary(expr, operator, right));
         }
 
         Ok(expr)
@@ -392,10 +427,10 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
-            return Ok(Expr::unary(operator, right));
+            return Ok(self.make_expr(&operator.clone(), ExprKind::unary(operator, right)));
+        } else {
+            self.call()
         }
-
-        self.call()
     }
 
     fn call(&mut self) -> Result<Expr, Error> {
@@ -409,6 +444,7 @@ impl Parser {
     }
 
     fn finish_call(&mut self, callee: Expr) -> Result<Expr, Error> {
+        let start = self.previous().clone();
         let mut arguments = Vec::new();
 
         if !self.check(&TokenType::RightParen) {
@@ -428,34 +464,40 @@ impl Parser {
 
         let paren = self.consume(TokenType::RightParen)?;
 
-        Ok(Expr::call(callee, paren, arguments))
+        Ok(self.make_expr(&start, ExprKind::call(callee, paren, arguments)))
     }
 
     fn primary(&mut self) -> Result<Expr, Error> {
-        let token = self.advance();
+        let token = self.advance().clone();
 
         match token.ty {
             TokenType::LeftParen => {
                 let expr = self.expression()?;
                 self.consume(TokenType::RightParen)?;
 
-                Ok(Expr::grouping(expr))
+                Ok(self.make_expr(&token, ExprKind::grouping(expr)))
             }
 
-            TokenType::Identifier(_) => Ok(Expr::variable(token.clone())),
+            TokenType::Identifier(_) => {
+                Ok(self.make_expr(&token, ExprKind::variable(token.clone())))
+            }
 
             TokenType::Fun => self.function_expr(),
 
             /* NOTE: This tries to pull a value, otherwise it errors. May have to
              * explode into match later.
              */
-            _ => Value::from_token(token.clone())
-                .map(Expr::literal)
-                .ok_or_else(|| Error::missing_expression(&token, "Expected primary expression.")),
+            _ => {
+                let value = Value::from_token(token.clone()).unwrap();
+                let kind = ExprKind::literal(value);
+
+                Ok(self.make_expr(&token, kind))
+            }
         }
     }
 
     fn function_expr(&mut self) -> Result<Expr, Error> {
+        let start = self.previous().clone();
         /* Function Parameters */
         let _ = self.consume(TokenType::LeftParen)?;
         let params = self.consume_function_parameters()?;
@@ -465,7 +507,7 @@ impl Parser {
         self.consume(TokenType::LeftBrace)?;
         let statements = self.block()?;
 
-        Ok(Expr::function(params, statements))
+        Ok(self.make_expr(&start, ExprKind::function(params, statements)))
     }
 
     /* Helper Functions */
@@ -473,7 +515,7 @@ impl Parser {
     fn make_expr(&mut self, start: &Token, kind: ExprKind) -> Expr {
         Expr {
             id: self.node_id(),
-            // span: start.span.to(self.tokens[self.current -1]),
+            span: start.span.to(self.previous().span),
             kind,
         }
     }
@@ -481,14 +523,17 @@ impl Parser {
     fn make_stmt(&mut self, start: &Token, kind: StmtKind) -> Stmt {
         Stmt {
             id: self.node_id(),
-            // span: start.to(self.tokens)[self.current - 1],
+            span: start.span.to(self.previous().span),
+            kind,
         }
     }
 
-    fn node_id(&mut self) -> u32  {
+    fn node_id(&mut self) -> NodeId {
+        let id = self.next_node_id;
+        self.next_node_id = NodeId(id.0 + 1);
 
+        id
     }
-
 
     fn consume(&mut self, ty: TokenType) -> Result<Token, Error> {
         if self.check(&ty) {

@@ -73,16 +73,16 @@ impl Interpreter {
     }
 
     fn execute(&mut self, stmt: &Stmt) -> ExecutionResult {
-        match stmt {
-            Stmt::Print(stmt) => self.print_statement(stmt),
-            Stmt::Expression(stmt) => self.evaluate(&stmt.expression),
-            Stmt::Var(stmt) => self.var_statement(stmt),
-            Stmt::Block(stmt) => self.block_statement(stmt),
-            Stmt::If(stmt) => self.if_statement(stmt),
-            Stmt::Return(stmt) => self.return_statement(stmt),
-            Stmt::Break(stmt) => self.break_statement(stmt),
-            Stmt::While(stmt) => self.while_statement(stmt),
-            Stmt::Function(stmt) => self.function_statement(stmt),
+        match &stmt.kind {
+            StmtKind::Print(s) => self.print_statement(&s),
+            StmtKind::Expression(s) => self.evaluate(&s.expression),
+            StmtKind::Var(s) => self.var_statement(&s),
+            StmtKind::Block(s) => self.block_statement(&s),
+            StmtKind::If(s) => self.if_statement(&s),
+            StmtKind::Return(s) => self.return_statement(&s),
+            StmtKind::Break(s) => self.break_statement(&s),
+            StmtKind::While(s) => self.while_statement(&s),
+            StmtKind::Function(s) => self.function_statement(&s),
         }
     }
 
@@ -178,23 +178,23 @@ impl Interpreter {
     }
 
     fn evaluate(&mut self, expr: &Expr) -> ExecutionResult {
-        match expr {
-            Expr::Literal(e) => Ok(e.value.clone()),
-            Expr::Logical(e) => self.eval_logical(e),
-            Expr::Variable(e) => self.eval_variable(e),
-            Expr::Assign(e) => self.eval_assign(e),
-            Expr::Unary(e) => self.eval_unary(e),
-            Expr::Binary(e) => self.eval_binary(e),
-            Expr::Call(e) => self.eval_call(e),
-            Expr::Grouping(e) => self.evaluate(&e.expression),
-            Expr::Function(e) => self.eval_function(e),
+        match &expr.kind {
+            ExprKind::Literal(e) => Ok(e.value.clone()),
+            ExprKind::Logical(e) => self.eval_logical(expr, &e),
+            ExprKind::Variable(e) => self.eval_variable(expr, &e),
+            ExprKind::Assign(e) => self.eval_assign(expr, &e),
+            ExprKind::Unary(e) => self.eval_unary(expr, &e),
+            ExprKind::Binary(e) => self.eval_binary(expr, &e),
+            ExprKind::Call(e) => self.eval_call(expr, &e),
+            ExprKind::Grouping(e) => self.evaluate(&e.expression),
+            ExprKind::Function(e) => self.eval_function(expr, &e),
         }
     }
 
-    fn eval_logical(&mut self, expr: &LogicalExpr) -> ExecutionResult {
-        let left = self.evaluate(&expr.left)?;
+    fn eval_logical(&mut self, expr: &Expr, kind: &LogicalExpr) -> ExecutionResult {
+        let left = self.evaluate(&kind.left)?;
 
-        match expr.operator.ty {
+        match kind.operator.ty {
             TokenType::And => {
                 if !Self::is_truthy(&left) {
                     return Ok(left);
@@ -210,37 +210,37 @@ impl Interpreter {
             _ => unreachable!(),
         }
 
-        self.evaluate(&expr.right)
+        self.evaluate(&kind.right)
     }
 
-    fn eval_variable(&self, expr: &VariableExpr) -> ExecutionResult {
-        self.env.get(&expr.name.lexeme).ok_or_else(|| {
+    fn eval_variable(&self, expr: &Expr, kind: &VariableExpr) -> ExecutionResult {
+        self.env.get(&kind.name.lexeme).ok_or_else(|| {
             Error::runtime(
-                &expr.name,
-                format!("Undefined variable '{}'", &expr.name.lexeme),
+                &kind.name,
+                format!("Undefined variable '{}'", &kind.name.lexeme),
             )
             .into()
         })
     }
 
-    fn eval_assign(&mut self, expr: &AssignExpr) -> ExecutionResult {
-        let value = self.evaluate(&expr.expression)?;
+    fn eval_assign(&mut self, expr: &Expr, kind: &AssignExpr) -> ExecutionResult {
+        let value = self.evaluate(&kind.expression)?;
 
-        self.env.assign(&expr.name.lexeme, value).ok_or_else(|| {
+        self.env.assign(&kind.name.lexeme, value).ok_or_else(|| {
             Error::runtime(
-                &expr.name,
-                format!("Undefined variable '{}'", &expr.name.lexeme),
+                &kind.name,
+                format!("Undefined variable '{}'", &kind.name.lexeme),
             )
             .into()
         })
     }
 
-    fn eval_unary(&mut self, expr: &UnaryExpr) -> ExecutionResult {
-        let right = self.evaluate(&expr.right)?;
+    fn eval_unary(&mut self, expr: &Expr, kind: &UnaryExpr) -> ExecutionResult {
+        let right = self.evaluate(&kind.right)?;
 
-        match expr.operator.ty {
+        match kind.operator.ty {
             TokenType::Minus => {
-                let a = Self::as_number(&right, &expr.operator)?;
+                let a = Self::as_number(&right, &kind.operator)?;
 
                 Ok(Value::Num(-a))
             }
@@ -250,17 +250,17 @@ impl Interpreter {
         }
     }
 
-    fn eval_binary(&mut self, expr: &BinaryExpr) -> ExecutionResult {
-        let left = self.evaluate(expr.left.as_ref())?;
-        let right = self.evaluate(expr.right.as_ref())?;
+    fn eval_binary(&mut self, expr: &Expr, kind: &BinaryExpr) -> ExecutionResult {
+        let left = self.evaluate(kind.left.as_ref())?;
+        let right = self.evaluate(kind.right.as_ref())?;
 
-        match expr.operator.ty {
+        match kind.operator.ty {
             /* Special Case: Needs to handle strings and numbers */
             TokenType::Plus => match (&left, &right) {
                 (Value::Num(a), Value::Num(b)) => Ok(Value::Num(a + b)),
                 (Value::Str(a), Value::Str(b)) => Ok(Value::Str(format!("{a}{b}"))),
                 _ => Err(Control::Error(Error::runtime(
-                    &expr.operator,
+                    &kind.operator,
                     "Operands must be numbers.",
                 ))),
             },
@@ -275,9 +275,9 @@ impl Interpreter {
             | TokenType::GreaterEqual
             | TokenType::Less
             | TokenType::LessEqual => {
-                let (a, b) = Self::as_numbers(&left, &right, &expr.operator)?;
+                let (a, b) = Self::as_numbers(&left, &right, &kind.operator)?;
 
-                Ok(match expr.operator.ty {
+                Ok(match kind.operator.ty {
                     TokenType::Minus => Value::Num(a - b),
                     TokenType::Slash => Value::Num(a / b),
                     TokenType::Star => Value::Num(a * b),
@@ -295,11 +295,11 @@ impl Interpreter {
         }
     }
 
-    fn eval_call(&mut self, expr: &CallExpr) -> ExecutionResult {
-        let callee = self.evaluate(expr.callee.as_ref())?;
+    fn eval_call(&mut self, expr: &Expr, kind: &CallExpr) -> ExecutionResult {
+        let callee = self.evaluate(kind.callee.as_ref())?;
 
         let mut arguments = Vec::new();
-        for argument in expr.arguments.iter() {
+        for argument in kind.arguments.iter() {
             let arg = self.evaluate(&argument)?;
             arguments.push(arg);
         }
@@ -308,12 +308,12 @@ impl Interpreter {
             Value::Fun(fun) => fun.call(self, &arguments).map_err(Control::from),
 
             /* TODO: The following should pull the span from the callee, not the paren. needs spans in exprs first. */
-            _ => Err(Control::Error(Error::value_not_callable(expr.paren.span))),
+            _ => Err(Control::Error(Error::value_not_callable(kind.paren.span))),
         }
     }
 
-    fn eval_function(&self, expr: &FunctionExpr) -> ExecutionResult {
-        let val = Value::function_from_expr(expr.clone());
+    fn eval_function(&self, expr: &Expr, kind: &FunctionExpr) -> ExecutionResult {
+        let val = Value::function_from_expr(kind.clone());
 
         Ok(val)
     }

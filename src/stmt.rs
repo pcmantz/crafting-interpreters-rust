@@ -37,7 +37,20 @@ impl<'a> IntoIterator for &'a Program {
 }
 
 #[derive(Debug, Clone)]
-pub enum Stmt {
+pub struct Stmt {
+    pub id: NodeId,
+    pub span: Span,
+    pub kind: StmtKind,
+}
+
+impl fmt::Display for Stmt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum StmtKind {
     Expression(ExpressionStmt),
     Print(PrintStmt),
     Var(VarStmt),
@@ -49,24 +62,24 @@ pub enum Stmt {
     Break(BreakStmt),
 }
 
-impl fmt::Display for Stmt {
+impl fmt::Display for StmtKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Stmt::Expression(s) => write!(f, "(expr {})", &s.expression),
-            Stmt::Print(s) => write!(f, "(print {})", &s.expression),
-            Stmt::Var(s) => match &s.initializer {
+            StmtKind::Expression(s) => write!(f, "(expr {})", &s.expression),
+            StmtKind::Print(s) => write!(f, "(print {})", &s.expression),
+            StmtKind::Var(s) => match &s.initializer {
                 Some(init) => write!(f, "(var {} {})", s.name.lexeme, init),
                 None => write!(f, "(var {})", s.name.lexeme),
             },
-            Stmt::Block(b) => write!(f, "(block {})", b.statements.iter().join("")),
-            Stmt::If(s) => {
+            StmtKind::Block(b) => write!(f, "(block {})", b.statements.iter().join("")),
+            StmtKind::If(s) => {
                 write!(f, "(if {} {}", &s.condition, &s.then_branch)?;
                 if let Some(e) = &s.else_branch {
                     write!(f, " {}", e)?;
                 }
                 write!(f, ")")
             }
-            Stmt::Return(s) => {
+            StmtKind::Return(s) => {
                 write!(f, "(return")?;
                 if let Some(e) = &s.value {
                     write!(f, " {}", e)?;
@@ -74,38 +87,38 @@ impl fmt::Display for Stmt {
                 write!(f, ")")
             }
 
-            Stmt::While(s) => write!(f, "(while {} {})", &s.condition, &s.body),
-            Stmt::Function(s) => write!(
+            StmtKind::While(s) => write!(f, "(while {} {})", &s.condition, &s.body),
+            StmtKind::Function(s) => write!(
                 f,
                 "(fun {} ({}) {})",
                 s.name.lexeme,
                 s.def.params.iter().map(|p| &p.lexeme).join(" "),
                 s.def.statements.iter().join(""),
             ),
-            Stmt::Break(s) => write!(f, "(break)"),
+            StmtKind::Break(s) => write!(f, "(break)"),
         }
     }
 }
 
-impl Stmt {
-    pub fn expression(expression: Expr) -> Stmt {
-        Stmt::Expression(ExpressionStmt { expression })
+impl StmtKind {
+    pub fn expression(expression: Expr) -> StmtKind {
+        StmtKind::Expression(ExpressionStmt { expression })
     }
 
-    pub fn print(expression: Expr) -> Stmt {
-        Stmt::Print(PrintStmt { expression })
+    pub fn print(expression: Expr) -> StmtKind {
+        StmtKind::Print(PrintStmt { expression })
     }
 
-    pub fn var(name: Token, initializer: Option<Expr>) -> Stmt {
-        Stmt::Var(VarStmt { name, initializer })
+    pub fn var(name: Token, initializer: Option<Expr>) -> StmtKind {
+        StmtKind::Var(VarStmt { name, initializer })
     }
 
-    pub fn block(statements: Vec<Stmt>) -> Stmt {
-        Stmt::Block(BlockStmt { statements })
+    pub fn block(statements: Vec<Stmt>) -> StmtKind {
+        StmtKind::Block(BlockStmt { statements })
     }
 
-    pub fn r#if(condition: Expr, then_branch: Stmt, else_branch: Option<Stmt>) -> Stmt {
-        Stmt::If(IfStmt {
+    pub fn r#if(condition: Expr, then_branch: Stmt, else_branch: Option<Stmt>) -> StmtKind {
+        StmtKind::If(IfStmt {
             condition,
             then_branch: Box::new(then_branch),
             else_branch: match else_branch {
@@ -115,26 +128,26 @@ impl Stmt {
         })
     }
 
-    pub fn r#return(keyword: Token, value: Option<Expr>) -> Stmt {
-        Stmt::Return(ReturnStmt { keyword, value })
+    pub fn r#return(keyword: Token, value: Option<Expr>) -> StmtKind {
+        StmtKind::Return(ReturnStmt { keyword, value })
     }
 
-    pub fn r#while(condition: Expr, body: Stmt) -> Stmt {
-        Stmt::While(WhileStmt {
+    pub fn r#while(condition: Expr, body: Stmt) -> StmtKind {
+        StmtKind::While(WhileStmt {
             condition,
             body: Box::new(body),
         })
     }
 
-    pub fn function(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> Stmt {
-        Stmt::Function(FunctionStmt {
+    pub fn function(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> StmtKind {
+        StmtKind::Function(FunctionStmt {
             name,
             def: Rc::new(FunctionDef { params, statements }),
         })
     }
 
-    pub fn r#break(keyword: Token) -> Stmt {
-        Stmt::Break(BreakStmt { keyword })
+    pub fn r#break(keyword: Token) -> StmtKind {
+        StmtKind::Break(BreakStmt { keyword })
     }
 }
 

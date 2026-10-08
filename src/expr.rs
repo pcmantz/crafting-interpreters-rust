@@ -11,7 +11,7 @@ use crate::value::*;
 
 #[derive(Debug, Clone)]
 pub struct Expr {
-    pub id: u32,
+    pub id: NodeId,
     pub span: Span,
     pub kind: ExprKind,
 }
