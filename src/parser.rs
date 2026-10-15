@@ -667,6 +667,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_print_statement() {
+        assert_eq!(sexpr(r#"print "Hello, world!";"#), "(print Hello, world!)");
+    }
+
+
+    #[test]
     fn parse_number() {
         assert_eq!(sexpr("123;"), "(expr 123)")
     }
@@ -837,6 +843,12 @@ fun foo(x) {
             r#"(fun foo (x) (expr (= Identifier("y") (+ Identifier("x") 10)))(print Identifier("y")))"#
         )
     }
+
+    #[test]
+    fn parse_return_statement() {
+        assert_eq!(sexpr("fun (x) { return x; };"), "(expr (fn <anonymous>))");
+    }
+
 
     #[test]
     fn parse_valid_but_useless_function_expr() {
