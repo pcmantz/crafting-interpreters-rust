@@ -53,6 +53,20 @@ impl Environment {
         self.0.enclosing.clone()
     }
 
+    pub fn ancestor(&self, distance: usize) -> Option<Environment> {
+        let mut env = self.clone();
+
+        for _i in 0..distance {
+            if let Some(enc) = env.enclosing() {
+                env = enc;
+            } else {
+                return None;
+            }
+        }
+
+        Some(env)
+    }
+
     pub fn define(&self, name: &str, value: Value) {
         self.0.values.borrow_mut().insert(name.into(), value);
     }
@@ -65,6 +79,18 @@ impl Environment {
         } else {
             None
         }
+    }
+
+    pub fn get_at(&self, distance: usize, name: &str) -> Option<Value> {
+        let val = self
+            .ancestor(distance)?
+            .0
+            .values
+            .borrow()
+            .get(name)?
+            .clone();
+
+        Some(val)
     }
 
     pub fn assign(&self, name: &str, value: Value) -> Option<Value> {

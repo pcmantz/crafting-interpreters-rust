@@ -55,14 +55,21 @@ impl Control {
 
 type ExecutionResult = Result<Value, Control>;
 
+#[derive(Debug)]
 pub struct Interpreter {
+    pub globals: Environment,
     pub env: Environment,
+    pub locals: HashMap<NodeId, usize>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
+        let globals = Environment::global();
+
         Self {
-            env: Environment::global(),
+            env: globals.clone(),
+            globals,
+            locals: HashMap::new(),
         }
     }
 
@@ -214,13 +221,16 @@ impl Interpreter {
     }
 
     fn eval_variable(&self, expr: &Expr, kind: &VariableExpr) -> ExecutionResult {
-        self.env.get(&kind.name.lexeme).ok_or_else(|| {
-            Error::runtime(
-                &kind.name,
-                format!("Undefined variable '{}'", &kind.name.lexeme),
-            )
-            .into()
-        })
+        self.look_up_variable(&kind.name, &expr)
+    }
+
+    fn look_up_variable(&self, name: &Token, expr: &Expr) -> ExecutionResult {
+        match self.locals.get(&expr.id) {
+            Some(distance) => Ok(self.env.get_at(*distance, &name.lexeme).unwrap()),
+            None => self.globals.get(&name.lexeme).ok_or_else(|| {
+                Error::runtime(&name, format!("Undefined variable '{}'", &name.lexeme)).into()
+            }),
+        }
     }
 
     fn eval_assign(&mut self, expr: &Expr, kind: &AssignExpr) -> ExecutionResult {
@@ -320,6 +330,10 @@ impl Interpreter {
 
     /* Helpers */
 
+    pub fn resolve(&mut self, id: NodeId, depth: usize) {
+        self.locals.insert(id, depth);
+    }
+
     fn as_numbers(left: &Value, right: &Value, operator: &Token) -> Result<(f64, f64), Error> {
         match (left, right) {
             (Value::Num(a), Value::Num(b)) => Ok((*a, *b)),
@@ -349,21 +363,15 @@ impl Interpreter {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser;
-    use crate::scanner;
-
-    use crate::environment::Environment;
+    use eyre;
 
     use super::*;
+    use crate::run;
 
-    fn run_result(src: &str) -> Result<Value, Error> {
-        let tokens =
-            scanner::scan(src.to_string()).unwrap_or_else(|e| panic!("scanning failed:\n{e}"));
-        let statements = parser::parse(tokens).unwrap_or_else(|e| panic!("parsing failed:\n{e}"));
-
+    fn run_result(src: &str) -> eyre::Result<Value> {
         let mut interpreter = Interpreter::new();
 
-        interpreter.run(statements)
+        crate::run(&mut interpreter, src)
     }
 
     fn eval(src: &str) -> Value {

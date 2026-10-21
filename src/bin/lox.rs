@@ -66,10 +66,7 @@ impl Lox {
     }
 
     fn run_code(&mut self, code: String) -> color_eyre::Result<Value> {
-        let tokens = scanner::scan(code)?;
-        let statements = parser::parse(tokens)?;
-
-        Ok(self.interpreter.run(statements)?)
+        Ok(run(&mut self.interpreter, &code)?)
     }
 }
 

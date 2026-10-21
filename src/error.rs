@@ -32,6 +32,7 @@ pub enum ErrorKind {
     ValueNotCallable {
         // called: Token,
     },
+    VariableUsedInDeclaration {},
 }
 
 impl fmt::Display for Error {
@@ -49,6 +50,9 @@ impl fmt::Display for Error {
             ErrorKind::InvalidAssignment { .. } => write!(f, "Invalid assignment."),
             ErrorKind::TooManyArguments { .. } => write!(f, "Too many arguments to function."),
             ErrorKind::ValueNotCallable { .. } => write!(f, "Value not callable."),
+            ErrorKind::VariableUsedInDeclaration { .. } => {
+                write!(f, "Can't read local variable in its own initializer.")
+            }
         }
     }
 }
@@ -115,6 +119,13 @@ impl Error {
             span,
         }
     }
+
+    pub fn var_used_in_declaration(span: Span) -> Error {
+        Error {
+            kind: ErrorKind::VariableUsedInDeclaration {},
+            span,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -127,3 +138,14 @@ impl fmt::Display for ParseErrors {
 }
 
 impl std::error::Error for ParseErrors {}
+
+#[derive(Debug, Clone)]
+pub struct ResolveErrors(pub Vec<Error>);
+
+impl fmt::Display for ResolveErrors {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0.iter().join("\n"))
+    }
+}
+
+impl std::error::Error for ResolveErrors {}

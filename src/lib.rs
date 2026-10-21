@@ -2,6 +2,8 @@
  *
  */
 
+pub use eyre;
+
 pub mod prelude;
 
 /* utility */
@@ -20,9 +22,19 @@ pub mod value;
 pub mod environment;
 pub mod interpreter;
 pub mod parser;
+pub mod resolver;
 pub mod scanner;
 
 pub use error::Error;
 pub use interpreter::Interpreter;
 pub use stmt::Program;
 pub use value::Value;
+
+pub fn run(interpreter: &mut Interpreter, source: &str) -> eyre::Result<Value> {
+    let tokens = scanner::scan(source.to_string())?;
+    let statements = parser::parse(tokens)?;
+
+    resolver::resolve(interpreter, &statements)?;
+
+    Ok(interpreter.run(statements)?)
+}
