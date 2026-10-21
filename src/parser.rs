@@ -19,7 +19,6 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseErrors> {
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    next_node_id: NodeId,
     statements: Vec<Stmt>,
     errors: Vec<Error>,
 }
@@ -29,7 +28,6 @@ impl Default for Parser {
         Self {
             tokens: Vec::new(),
             current: 0,
-            next_node_id: NodeId(0),
             statements: Vec::new(),
             errors: Vec::new(),
         }
@@ -183,7 +181,7 @@ impl Parser {
 
             /* Construct manually to clone the span correctly */
             let increment_stmt = Stmt {
-                id: self.node_id(),
+                id: NodeId::fresh(),
                 span: increment_expr.span,
                 kind: StmtKind::expression(increment_expr),
             };
@@ -514,7 +512,7 @@ impl Parser {
 
     fn make_expr(&mut self, start: &Token, kind: ExprKind) -> Expr {
         Expr {
-            id: self.node_id(),
+            id: NodeId::fresh(),
             span: start.span.to(self.previous().span),
             kind,
         }
@@ -522,17 +520,10 @@ impl Parser {
 
     fn make_stmt(&mut self, start: &Token, kind: StmtKind) -> Stmt {
         Stmt {
-            id: self.node_id(),
+            id: NodeId::fresh(),
             span: start.span.to(self.previous().span),
             kind,
         }
-    }
-
-    fn node_id(&mut self) -> NodeId {
-        let id = self.next_node_id;
-        self.next_node_id = NodeId(id.0 + 1);
-
-        id
     }
 
     fn consume(&mut self, ty: TokenType) -> Result<Token, Error> {

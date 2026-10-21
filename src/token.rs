@@ -2,6 +2,8 @@
  *
  */
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use crate::prelude::*;
 
 pub static KEYWORDS: LazyLock<HashMap<&str, TokenType>> = LazyLock::new(|| {
@@ -30,6 +32,8 @@ pub fn keyword(kw: &str) -> Option<TokenType> {
     KEYWORDS.get(kw).cloned()
 }
 
+static NEXT_NODE_ID: AtomicU32 = AtomicU32::new(0);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Pos {
     pub offset: usize,
@@ -52,6 +56,12 @@ impl Span {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub u32);
+
+impl NodeId {
+    pub fn fresh() -> Self {
+        Self(NEXT_NODE_ID.fetch_add(1, Ordering::Relaxed))
+    }
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TokenType {
