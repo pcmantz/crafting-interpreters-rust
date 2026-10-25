@@ -9,6 +9,15 @@ color-eyre = "0.6.5"
 eyre = "0.6.14"
 itertools = "0.15.0"
 
+[lints.rust]
+ambiguous_negative_literals = "warn"
+missing_debug_implementations = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+trivial_numeric_casts = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+unused_lifetimes = "warn"
+
 [[bin]]
 name = "lox-ast"
 path = "src/bin/lox_ast.rs"
