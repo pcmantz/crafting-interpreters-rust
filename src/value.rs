@@ -41,8 +41,8 @@ impl CallableKind {
                 let name = &f.name;
 
                 match name {
-                    Some(val) => &val,
-                    None => "<anonymous>".into(),
+                    Some(val) => val,
+                    None => "<anonymous>"
                 }
             }
 
@@ -79,7 +79,7 @@ impl PartialEq for Value {
             (Value::Bool(s), Value::Bool(o)) => s == o,
             (Value::Num(s), Value::Num(o)) => s == o,
             (Value::Str(s), Value::Str(o)) => s == o,
-            (Value::Fun(s), Value::Fun(o)) => Rc::ptr_eq(&s, o),
+            (Value::Fun(s), Value::Fun(o)) => Rc::ptr_eq(s, o),
             (Value::Nil, Value::Nil) => true,
             _ => false,
         }

@@ -2,7 +2,6 @@
  *
  */
 
-use crate::function::FunctionDef;
 use crate::prelude::*;
 
 use crate::expr::*;
@@ -95,7 +94,7 @@ impl fmt::Display for StmtKind {
                 s.def.params.iter().map(|p| &p.lexeme).join(" "),
                 s.def.statements.iter().join(""),
             ),
-            StmtKind::Break(s) => write!(f, "(break)"),
+            StmtKind::Break(_) => write!(f, "(break)"),
         }
     }
 }

@@ -46,7 +46,7 @@ impl fmt::Display for ExprKind {
             ExprKind::Variable(e) => write!(f, "{}", e.name),
             ExprKind::Assign(e) => write!(f, "(= {} {})", e.name, e.expression),
             ExprKind::Call(e) => write!(f, "({} {})", e.callee, e.arguments.iter().join(" ")),
-            ExprKind::Function(e) => write!(f, "(fn <anonymous>)"),
+            ExprKind::Function(_) => write!(f, "(fn <anonymous>)"),
         }
     }
 }

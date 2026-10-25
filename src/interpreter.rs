@@ -24,10 +24,10 @@ impl fmt::Display for Control {
         match self {
             Control::Error(e) => write!(f, "{}", e),
             Control::Return {
-                keyword: k,
-                value: v,
+                keyword: _k,
+                value: _v,
             } => todo!(),
-            Control::Break { keyword: k } => todo!(),
+            Control::Break { keyword: _k } => todo!(),
         }
     }
 }
@@ -81,15 +81,15 @@ impl Interpreter {
 
     fn execute(&mut self, stmt: &Stmt) -> ExecutionResult {
         match &stmt.kind {
-            StmtKind::Print(s) => self.print_statement(&s),
+            StmtKind::Print(s) => self.print_statement(s),
             StmtKind::Expression(s) => self.evaluate(&s.expression),
-            StmtKind::Var(s) => self.var_statement(&s),
-            StmtKind::Block(s) => self.block_statement(&s),
-            StmtKind::If(s) => self.if_statement(&s),
-            StmtKind::Return(s) => self.return_statement(&s),
-            StmtKind::Break(s) => self.break_statement(&s),
-            StmtKind::While(s) => self.while_statement(&s),
-            StmtKind::Function(s) => self.function_statement(&s),
+            StmtKind::Var(s) => self.var_statement(s),
+            StmtKind::Block(s) => self.block_statement(s),
+            StmtKind::If(s) => self.if_statement(s),
+            StmtKind::Return(s) => self.return_statement(s),
+            StmtKind::Break(s) => self.break_statement(s),
+            StmtKind::While(s) => self.while_statement(s),
+            StmtKind::Function(s) => self.function_statement(s),
         }
     }
 
@@ -147,7 +147,7 @@ impl Interpreter {
     fn return_statement(&mut self, stmt: &ReturnStmt) -> ExecutionResult {
         let keyword = stmt.keyword.clone();
         let value = match &stmt.value {
-            Some(expr) => self.evaluate(&expr)?,
+            Some(expr) => self.evaluate(expr)?,
             None => Value::Nil,
         };
 
@@ -187,18 +187,18 @@ impl Interpreter {
     fn evaluate(&mut self, expr: &Expr) -> ExecutionResult {
         match &expr.kind {
             ExprKind::Literal(e) => Ok(e.value.clone()),
-            ExprKind::Logical(e) => self.eval_logical(expr, &e),
-            ExprKind::Variable(e) => self.eval_variable(expr, &e),
-            ExprKind::Assign(e) => self.eval_assign(expr, &e),
-            ExprKind::Unary(e) => self.eval_unary(expr, &e),
-            ExprKind::Binary(e) => self.eval_binary(expr, &e),
-            ExprKind::Call(e) => self.eval_call(expr, &e),
+            ExprKind::Logical(e) => self.eval_logical(expr, e),
+            ExprKind::Variable(e) => self.eval_variable(expr, e),
+            ExprKind::Assign(e) => self.eval_assign(expr, e),
+            ExprKind::Unary(e) => self.eval_unary(expr, e),
+            ExprKind::Binary(e) => self.eval_binary(expr, e),
+            ExprKind::Call(e) => self.eval_call(expr, e),
             ExprKind::Grouping(e) => self.evaluate(&e.expression),
-            ExprKind::Function(e) => self.eval_function(expr, &e),
+            ExprKind::Function(e) => self.eval_function(expr, e),
         }
     }
 
-    fn eval_logical(&mut self, expr: &Expr, kind: &LogicalExpr) -> ExecutionResult {
+    fn eval_logical(&mut self, _expr: &Expr, kind: &LogicalExpr) -> ExecutionResult {
         let left = self.evaluate(&kind.left)?;
 
         match kind.operator.ty {
@@ -221,19 +221,19 @@ impl Interpreter {
     }
 
     fn eval_variable(&self, expr: &Expr, kind: &VariableExpr) -> ExecutionResult {
-        self.look_up_variable(&kind.name, &expr)
+        self.look_up_variable(&kind.name, expr)
     }
 
     fn look_up_variable(&self, name: &Token, expr: &Expr) -> ExecutionResult {
         match self.locals.get(&expr.id) {
             Some(distance) => Ok(self.env.get_at(*distance, &name.lexeme).unwrap()),
             None => self.globals.get(&name.lexeme).ok_or_else(|| {
-                Error::runtime(&name, format!("Undefined variable '{}'", &name.lexeme)).into()
+                Error::runtime(name, format!("Undefined variable '{}'", &name.lexeme)).into()
             }),
         }
     }
 
-    fn eval_assign(&mut self, expr: &Expr, kind: &AssignExpr) -> ExecutionResult {
+    fn eval_assign(&mut self, _expr: &Expr, kind: &AssignExpr) -> ExecutionResult {
         let value = self.evaluate(&kind.expression)?;
 
         self.env.assign(&kind.name.lexeme, value).ok_or_else(|| {
@@ -245,7 +245,7 @@ impl Interpreter {
         })
     }
 
-    fn eval_unary(&mut self, expr: &Expr, kind: &UnaryExpr) -> ExecutionResult {
+    fn eval_unary(&mut self, _expr: &Expr, kind: &UnaryExpr) -> ExecutionResult {
         let right = self.evaluate(&kind.right)?;
 
         match kind.operator.ty {
@@ -260,7 +260,7 @@ impl Interpreter {
         }
     }
 
-    fn eval_binary(&mut self, expr: &Expr, kind: &BinaryExpr) -> ExecutionResult {
+    fn eval_binary(&mut self, _expr: &Expr, kind: &BinaryExpr) -> ExecutionResult {
         let left = self.evaluate(kind.left.as_ref())?;
         let right = self.evaluate(kind.right.as_ref())?;
 
@@ -305,12 +305,12 @@ impl Interpreter {
         }
     }
 
-    fn eval_call(&mut self, expr: &Expr, kind: &CallExpr) -> ExecutionResult {
+    fn eval_call(&mut self, _expr: &Expr, kind: &CallExpr) -> ExecutionResult {
         let callee = self.evaluate(kind.callee.as_ref())?;
 
         let mut arguments = Vec::new();
         for argument in kind.arguments.iter() {
-            let arg = self.evaluate(&argument)?;
+            let arg = self.evaluate(argument)?;
             arguments.push(arg);
         }
 
@@ -322,7 +322,7 @@ impl Interpreter {
         }
     }
 
-    fn eval_function(&self, expr: &Expr, kind: &FunctionExpr) -> ExecutionResult {
+    fn eval_function(&self, _expr: &Expr, kind: &FunctionExpr) -> ExecutionResult {
         let val = Value::function_from_expr(kind.clone());
 
         Ok(val)

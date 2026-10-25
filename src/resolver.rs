@@ -151,7 +151,7 @@ impl<'a> Resolver<'a> {
         self.declare(&kind.name);
 
         if let Some(init) = &kind.initializer {
-            self.resolve_expression(&init);
+            self.resolve_expression(init);
         }
 
         self.define(&kind.name);
@@ -168,13 +168,13 @@ impl<'a> Resolver<'a> {
         self.resolve_statement(&kind.then_branch);
 
         if let Some(else_branch) = &kind.else_branch {
-            self.resolve_statement(&else_branch);
+            self.resolve_statement(else_branch);
         }
     }
 
     pub fn resolve_return_statement(&mut self, kind: &ReturnStmt) {
         if let Some(value) = &kind.value {
-            self.resolve_expression(&value);
+            self.resolve_expression(value);
         }
     }
 
@@ -194,8 +194,8 @@ impl<'a> Resolver<'a> {
         self.begin_scope();
 
         for param in &def.params {
-            self.declare(&param);
-            self.define(&param);
+            self.declare(param);
+            self.define(param);
         }
 
         self.resolve_statements(&def.statements);
@@ -205,7 +205,7 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_expression(&mut self, expr: &Expr) {
         match &expr.kind {
-            ExprKind::Literal(e) => {} /* nothing to do */
+            ExprKind::Literal(_) => {} /* nothing to do */
             ExprKind::Logical(e) => self.resolve_logical_expression(e),
             ExprKind::Variable(e) => self.resolve_variable_expression(expr, e),
             ExprKind::Assign(e) => self.resolve_assign_expression(expr, e),
@@ -254,7 +254,7 @@ impl<'a> Resolver<'a> {
         self.resolve_expression(&kind.callee);
 
         for argument in &kind.arguments {
-            self.resolve_expression(&argument);
+            self.resolve_expression(argument);
         }
     }
 

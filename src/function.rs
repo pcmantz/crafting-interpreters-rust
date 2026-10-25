@@ -4,9 +4,7 @@
 
 use crate::prelude::*;
 
-use crate::environment::*;
 use crate::error::*;
-use crate::expr::*;
 use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
@@ -41,8 +39,8 @@ impl Callable for FunctionDef {
 
         interpreter.env = child;
 
-        for i in 0..arguments.len() {
-            let name = &self.params[i].lexeme;
+        for (i, param) in self.params.iter().enumerate() {
+            let name = &param.lexeme;
             let value = arguments[i].clone();
 
             interpreter.env.define(name, value);

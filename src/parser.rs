@@ -2,8 +2,6 @@
  *
  */
 
-use crate::prelude::*;
-
 use crate::error::*;
 use crate::expr::*;
 use crate::stmt::*;
@@ -16,6 +14,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseErrors> {
     parser.parse(tokens)
 }
 
+#[derive(Debug)]
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
@@ -425,7 +424,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
-            return Ok(self.make_expr(&operator.clone(), ExprKind::unary(operator, right)));
+            Ok(self.make_expr(&operator.clone(), ExprKind::unary(operator, right)))
         } else {
             self.call()
         }

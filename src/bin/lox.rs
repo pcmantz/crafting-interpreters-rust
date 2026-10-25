@@ -66,7 +66,7 @@ impl Lox {
     }
 
     fn run_code(&mut self, code: String) -> color_eyre::Result<Value> {
-        Ok(run(&mut self.interpreter, &code)?)
+        run(&mut self.interpreter, &code)
     }
 }
 

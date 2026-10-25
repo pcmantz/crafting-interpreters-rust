@@ -2,8 +2,6 @@
  *
  */
 
-use crate::prelude::*;
-
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::environment::*;
@@ -17,7 +15,7 @@ pub fn populate_environment(env: &Environment) {
     );
 }
 
-pub fn clock(args: &[Value]) -> Result<Value, Error> {
+pub fn clock(_args: &[Value]) -> Result<Value, Error> {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs_f64())
