@@ -81,21 +81,24 @@ impl Interpreter {
 
     fn execute(&mut self, stmt: &Stmt) -> ExecutionResult {
         match &stmt.kind {
-            StmtKind::Print(s) => self.print_statement(s),
-            StmtKind::Expression(s) => self.evaluate(&s.expression),
+            StmtKind::Class(s) => self.class_statement(s),
             StmtKind::Var(s) => self.var_statement(s),
+            StmtKind::Function(s) => self.function_statement(s),
+            StmtKind::Expression(s) => self.evaluate(&s.expression),
+            StmtKind::Print(s) => self.print_statement(s),
             StmtKind::Block(s) => self.block_statement(s),
             StmtKind::If(s) => self.if_statement(s),
             StmtKind::Return(s) => self.return_statement(s),
             StmtKind::Break(s) => self.break_statement(s),
             StmtKind::While(s) => self.while_statement(s),
-            StmtKind::Function(s) => self.function_statement(s),
         }
     }
 
-    fn print_statement(&mut self, stmt: &PrintStmt) -> ExecutionResult {
-        let value = self.evaluate(&stmt.expression)?;
-        println!("{}", value);
+    fn class_statement(&mut self, stmt: &ClassStmt) -> ExecutionResult {
+        self.env.define(&stmt.name.lexeme, Value::Nil);
+        let klass = Value::from(stmt.clone());
+        self.env.assign(&stmt.name.lexeme, klass);
+
         Ok(Value::Nil)
     }
 
@@ -107,6 +110,19 @@ impl Interpreter {
 
         self.env.define(&stmt.name.lexeme, value);
 
+        Ok(Value::Nil)
+    }
+
+    fn function_statement(&self, stmt: &FunctionStmt) -> ExecutionResult {
+        let val = Value::from(stmt.clone());
+        self.env.define(&stmt.name.lexeme, val);
+
+        Ok(Value::Nil)
+    }
+
+    fn print_statement(&mut self, stmt: &PrintStmt) -> ExecutionResult {
+        let value = self.evaluate(&stmt.expression)?;
+        println!("{}", value);
         Ok(Value::Nil)
     }
 
@@ -173,13 +189,6 @@ impl Interpreter {
                 }
             }
         }
-
-        Ok(Value::Nil)
-    }
-
-    fn function_statement(&self, stmt: &FunctionStmt) -> ExecutionResult {
-        let val = Value::function_from_stmt(stmt.clone());
-        self.env.define(&stmt.name.lexeme, val);
 
         Ok(Value::Nil)
     }
@@ -323,9 +332,7 @@ impl Interpreter {
     }
 
     fn eval_function(&self, _expr: &Expr, kind: &FunctionExpr) -> ExecutionResult {
-        let val = Value::function_from_expr(kind.clone());
-
-        Ok(val)
+        Ok(Value::from(kind.clone()))
     }
 
     /* Helpers */
@@ -617,6 +624,22 @@ somefun(3, func);
 "#
             ),
             Value::Num(6.0)
+        );
+    }
+
+    #[test]
+    fn interpret_class() {
+        assert_eq!(
+            eval(
+                r#"
+class DevonshireCream {
+    serveOn() {
+        return "scones";
+    }
+}
+"#
+            ),
+            Value::Nil
         );
     }
 }

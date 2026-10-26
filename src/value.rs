@@ -7,6 +7,7 @@ use crate::prelude::*;
 use crate::error::*;
 use crate::expr::*;
 use crate::function::*;
+use crate::lox_class::*;
 use crate::stmt::*;
 use crate::token::*;
 
@@ -16,6 +17,18 @@ use crate::interpreter::*;
 pub enum CallableKind {
     User(Function),
     Native(NativeFunction),
+}
+
+impl From<Function> for CallableKind {
+    fn from(source: Function) -> Self {
+        Self::User(source)
+    }
+}
+
+impl From<NativeFunction> for CallableKind {
+    fn from(source: NativeFunction) -> Self {
+        Self::Native(source)
+    }
 }
 
 impl Callable for CallableKind {
@@ -42,7 +55,7 @@ impl CallableKind {
 
                 match name {
                     Some(val) => val,
-                    None => "<anonymous>"
+                    None => "<anonymous>",
                 }
             }
 
@@ -53,6 +66,7 @@ impl CallableKind {
 
 #[derive(Debug, Clone)]
 pub enum Value {
+    Class(Rc<LoxClass>),
     Fun(Rc<CallableKind>),
     Str(String),
     Num(f64),
@@ -63,6 +77,7 @@ pub enum Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Value::Class(klass) => write!(f, "<class {}>", klass.name),
             Value::Fun(fun) => write!(f, "<fun {}>", fun.name()),
             Value::Str(str) => write!(f, "{str}"),
             Value::Num(n) => write!(f, "{n}"),
@@ -76,13 +91,44 @@ impl fmt::Display for Value {
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Value::Bool(s), Value::Bool(o)) => s == o,
-            (Value::Num(s), Value::Num(o)) => s == o,
-            (Value::Str(s), Value::Str(o)) => s == o,
+            (Value::Class(s), Value::Class(o)) => Rc::ptr_eq(s, o),
             (Value::Fun(s), Value::Fun(o)) => Rc::ptr_eq(s, o),
+            (Value::Str(s), Value::Str(o)) => s == o,
+            (Value::Num(s), Value::Num(o)) => s == o,
+            (Value::Bool(s), Value::Bool(o)) => s == o,
             (Value::Nil, Value::Nil) => true,
             _ => false,
         }
+    }
+}
+
+impl From<ClassStmt> for Value {
+    fn from(source: ClassStmt) -> Self {
+        Self::Class(Rc::from(LoxClass::from(source)))
+    }
+}
+
+impl From<LoxClass> for Value {
+    fn from(source: LoxClass) -> Self {
+        Self::Class(Rc::new(source))
+    }
+}
+
+impl From<FunctionStmt> for Value {
+    fn from(source: FunctionStmt) -> Self {
+        Self::Fun(Rc::new(CallableKind::from(Function::from(source))))
+    }
+}
+
+impl From<FunctionExpr> for Value {
+    fn from(source: FunctionExpr) -> Self {
+        Self::Fun(Rc::new(CallableKind::from(Function::from(source))))
+    }
+}
+
+impl From<NativeFunction> for Value {
+    fn from(source: NativeFunction) -> Self {
+        Self::Fun(Rc::new(CallableKind::from(source)))
     }
 }
 
@@ -98,34 +144,11 @@ impl Value {
         }
     }
 
-    pub fn function_from_expr(expr: FunctionExpr) -> Value {
-        let func = Function {
-            name: None,
-            def: Rc::clone(&expr.def),
-        };
-        let kind = CallableKind::User(func);
-
-        Value::Fun(Rc::new(kind))
-    }
-
-    pub fn function_from_stmt(stmt: FunctionStmt) -> Value {
-        let func = Function {
-            name: Some(stmt.name.lexeme),
-            def: Rc::clone(&stmt.def),
-        };
-        let kind = CallableKind::User(func);
-
-        Value::Fun(Rc::new(kind))
-    }
-
     pub fn native_function(
         name: String,
         arity: usize,
         fun: fn(&[Value]) -> Result<Value, Error>,
     ) -> Value {
-        let func = NativeFunction { name, arity, fun };
-        let kind = CallableKind::Native(func);
-
-        Value::Fun(Rc::new(kind))
+        Value::from(NativeFunction { name, arity, fun })
     }
 }

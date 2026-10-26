@@ -127,24 +127,22 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_statement(&mut self, stmt: &Stmt) {
         match &stmt.kind {
+            StmtKind::Class(s) => self.resolve_class_statement(s),
+            StmtKind::Var(s) => self.resolve_var_statement(s),
+            StmtKind::Function(s) => self.resolve_function_statement(s),
             StmtKind::Expression(s) => self.resolve_expression_statement(s),
             StmtKind::Print(s) => self.resolve_print_statement(s),
-            StmtKind::Var(s) => self.resolve_var_statement(s),
             StmtKind::Block(s) => self.resolve_block_statement(s),
             StmtKind::If(s) => self.resolve_if_statement(s),
             StmtKind::Return(s) => self.resolve_return_statement(s),
             StmtKind::While(s) => self.resolve_while_statement(s),
-            StmtKind::Function(s) => self.resolve_function_statement(s),
             StmtKind::Break(_) => {} /* NOTE: nothing to do here */
         }
     }
 
-    pub fn resolve_expression_statement(&mut self, kind: &ExpressionStmt) {
-        self.resolve_expression(&kind.expression);
-    }
-
-    pub fn resolve_print_statement(&mut self, kind: &PrintStmt) {
-        self.resolve_expression(&kind.expression);
+    pub fn resolve_class_statement(&mut self, kind: &ClassStmt) {
+        self.declare(&kind.name);
+        self.define(&kind.name);
     }
 
     pub fn resolve_var_statement(&mut self, kind: &VarStmt) {
@@ -155,6 +153,21 @@ impl<'a> Resolver<'a> {
         }
 
         self.define(&kind.name);
+    }
+
+    pub fn resolve_function_statement(&mut self, kind: &FunctionStmt) {
+        self.declare(&kind.name);
+        self.define(&kind.name);
+
+        self.resolve_function_def(&kind.def);
+    }
+
+    pub fn resolve_expression_statement(&mut self, kind: &ExpressionStmt) {
+        self.resolve_expression(&kind.expression);
+    }
+
+    pub fn resolve_print_statement(&mut self, kind: &PrintStmt) {
+        self.resolve_expression(&kind.expression);
     }
 
     pub fn resolve_block_statement(&mut self, kind: &BlockStmt) {
@@ -181,13 +194,6 @@ impl<'a> Resolver<'a> {
     pub fn resolve_while_statement(&mut self, kind: &WhileStmt) {
         self.resolve_expression(&kind.condition);
         self.resolve_statement(&kind.body);
-    }
-
-    pub fn resolve_function_statement(&mut self, kind: &FunctionStmt) {
-        self.declare(&kind.name);
-        self.define(&kind.name);
-
-        self.resolve_function_def(&kind.def);
     }
 
     pub fn resolve_function_def(&mut self, def: &FunctionDef) {

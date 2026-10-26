@@ -62,6 +62,10 @@ impl Parser {
                 self.consume(TokenType::Var)?;
                 self.var_declaration()
             }
+            TokenType::Class => {
+                self.consume(TokenType::Class)?;
+                self.class_declaration()
+            }
             TokenType::Fun => {
                 if matches!(self.next().ty, TokenType::Identifier(_)) {
                     self.consume(TokenType::Fun)?;
@@ -88,6 +92,22 @@ impl Parser {
         Ok(self.make_stmt(&start, StmtKind::var(name, initializer)))
     }
 
+    fn class_declaration(&mut self) -> Result<Stmt, Error> {
+        let name = self.consume_identifier()?;
+        self.consume(TokenType::LeftBrace)?;
+
+        let mut methods: Vec<Stmt> = Vec::new();
+
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            let method = self.method_declaration()?;
+            methods.push(method);
+        }
+
+        self.consume(TokenType::RightBrace)?;
+
+        Ok(self.make_stmt(&name.clone(), StmtKind::class(name, methods)))
+    }
+
     fn function_declaration(&mut self) -> Result<Stmt, Error> {
         let start = self.previous().clone();
 
@@ -104,6 +124,22 @@ impl Parser {
         let statements = self.block()?;
 
         Ok(self.make_stmt(&start, StmtKind::function(name, params, statements)))
+    }
+
+    fn method_declaration(&mut self) -> Result<Stmt, Error> {
+        /* Function name */
+        let name = self.consume_identifier()?;
+
+        /* Function Parameters */
+        let _ = self.consume(TokenType::LeftParen)?;
+        let params = self.consume_function_parameters()?;
+        let _ = self.consume(TokenType::RightParen)?;
+
+        /* Function body */
+        self.consume(TokenType::LeftBrace)?;
+        let statements = self.block()?;
+
+        Ok(self.make_stmt(&name.clone(), StmtKind::method(name, params, statements)))
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {
@@ -841,5 +877,21 @@ fun foo(x) {
     #[test]
     fn parse_valid_but_useless_function_expr() {
         assert_eq!(sexpr("fun (x) { print x; };"), "(expr (fn <anonymous>))");
+    }
+
+    #[test]
+    fn parse_class() {
+        assert_eq!(
+            sexpr(
+                r#"
+class DevonshireCream {
+    serveOn() {
+        return "scones";
+    }
+}
+"#
+            ),
+            r#"(class Identifier("DevonshireCream"))"#
+        )
     }
 }

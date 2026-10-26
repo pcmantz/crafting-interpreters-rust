@@ -13,6 +13,7 @@ pub mod pipe;
 pub mod error;
 pub mod expr;
 pub mod function;
+pub mod lox_class;
 pub mod native;
 pub mod stmt;
 pub mod token;

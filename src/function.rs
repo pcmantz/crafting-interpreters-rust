@@ -5,6 +5,7 @@
 use crate::prelude::*;
 
 use crate::error::*;
+use crate::expr::*;
 use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
@@ -24,6 +25,7 @@ pub enum FunctionKind {
 
 #[derive(Debug, Clone)]
 pub struct FunctionDef {
+    pub kind: FunctionKind,
     pub params: Vec<Token>,
     pub statements: Vec<Stmt>,
 }
@@ -63,6 +65,24 @@ impl Callable for FunctionDef {
 pub struct Function {
     pub name: Option<String>,
     pub def: Rc<FunctionDef>,
+}
+
+impl From<FunctionStmt> for Function {
+    fn from(source: FunctionStmt) -> Self {
+        Self {
+            name: Some(source.name.lexeme),
+            def: Rc::clone(&source.def),
+        }
+    }
+}
+
+impl From<FunctionExpr> for Function {
+    fn from(source: FunctionExpr) -> Self {
+        Self {
+            name: None,
+            def: Rc::clone(&source.def),
+        }
+    }
 }
 
 impl Callable for Function {
