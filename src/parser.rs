@@ -354,8 +354,10 @@ impl Parser {
 
             match expr.kind {
                 ExprKind::Variable(k) => {
-                    let name = k.name;
-                    Ok(self.make_expr(&start, ExprKind::assign(name, value)))
+                    Ok(self.make_expr(&start, ExprKind::assign(k.name, value)))
+                }
+                ExprKind::Get(k) => {
+                    Ok(self.make_expr(&start, ExprKind::set(*k.object, k.name, value)))
                 }
 
                 /* TODO: make this come from expr instead */
@@ -469,8 +471,15 @@ impl Parser {
     fn call(&mut self) -> Result<Expr, Error> {
         let mut expr = self.primary()?;
 
-        while self.matches(&[TokenType::LeftParen]) {
-            expr = self.finish_call(expr)?;
+        loop {
+            if self.matches(&[TokenType::LeftParen]) {
+                expr = self.finish_call(expr)?;
+            } else if self.matches(&[TokenType::Dot]) {
+                let name = self.consume_identifier()?;
+                expr = self.make_expr(&name.clone(), ExprKind::get(expr, name))
+            } else {
+                break;
+            }
         }
 
         Ok(expr)

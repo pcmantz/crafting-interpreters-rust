@@ -213,11 +213,13 @@ impl<'a> Resolver<'a> {
         match &expr.kind {
             ExprKind::Literal(_) => {} /* nothing to do */
             ExprKind::Logical(e) => self.resolve_logical_expression(e),
+            ExprKind::Set(e) => self.resolve_set_expression(e),
             ExprKind::Variable(e) => self.resolve_variable_expression(expr, e),
             ExprKind::Assign(e) => self.resolve_assign_expression(expr, e),
             ExprKind::Unary(e) => self.resolve_unary_expression(e),
             ExprKind::Binary(e) => self.resolve_binary_expression(e),
             ExprKind::Call(e) => self.resolve_call_expression(e),
+            ExprKind::Get(e) => self.resolve_get_expression(e),
             ExprKind::Grouping(e) => self.resolve_grouping_expression(e),
             ExprKind::Function(e) => self.resolve_function_expression(e),
         }
@@ -226,6 +228,11 @@ impl<'a> Resolver<'a> {
     pub fn resolve_logical_expression(&mut self, kind: &LogicalExpr) {
         self.resolve_expression(&kind.left);
         self.resolve_expression(&kind.right);
+    }
+
+    pub fn resolve_set_expression(&mut self, kind: &SetExpr) {
+        self.resolve_expression(&kind.value);
+        self.resolve_expression(&kind.object);
     }
 
     pub fn resolve_variable_expression(&mut self, expr: &Expr, kind: &VariableExpr) {
@@ -262,6 +269,10 @@ impl<'a> Resolver<'a> {
         for argument in &kind.arguments {
             self.resolve_expression(argument);
         }
+    }
+
+    pub fn resolve_get_expression(&mut self, kind: &GetExpr) {
+        self.resolve_expression(&kind.object)
     }
 
     pub fn resolve_grouping_expression(&mut self, kind: &GroupingExpr) {

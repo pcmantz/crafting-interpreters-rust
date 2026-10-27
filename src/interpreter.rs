@@ -197,11 +197,13 @@ impl Interpreter {
         match &expr.kind {
             ExprKind::Literal(e) => Ok(e.value.clone()),
             ExprKind::Logical(e) => self.eval_logical(expr, e),
+            ExprKind::Set(e) => self.eval_set(expr, e),
             ExprKind::Variable(e) => self.eval_variable(expr, e),
             ExprKind::Assign(e) => self.eval_assign(expr, e),
             ExprKind::Unary(e) => self.eval_unary(expr, e),
             ExprKind::Binary(e) => self.eval_binary(expr, e),
             ExprKind::Call(e) => self.eval_call(expr, e),
+            ExprKind::Get(e) => self.eval_get(expr, e),
             ExprKind::Grouping(e) => self.evaluate(&e.expression),
             ExprKind::Function(e) => self.eval_function(expr, e),
         }
@@ -227,6 +229,19 @@ impl Interpreter {
         }
 
         self.evaluate(&kind.right)
+    }
+
+    fn eval_set(&mut self, expr: &Expr, kind: &SetExpr) -> ExecutionResult {
+        let object = self.evaluate(&kind.object)?;
+
+        if let Value::Instance(inst) = object {
+            let value = self.evaluate(&kind.value)?;
+            inst.set(&kind.name, value.clone());
+
+            Ok(value)
+        } else {
+            Err(Control::from(Error::runtime(&kind.name.clone(), "Only instances have fields.")))
+        }
     }
 
     fn eval_variable(&self, expr: &Expr, kind: &VariableExpr) -> ExecutionResult {
@@ -325,11 +340,24 @@ impl Interpreter {
 
         match callee {
             Value::Fun(fun) => fun.call(self, &arguments).map_err(Control::from),
+            Value::Class(klass) => klass.call(self, &arguments).map_err(Control::from),
 
             /* TODO: The following should pull the span from the callee, not the paren. needs spans in exprs first. */
             _ => Err(Control::Error(Error::value_not_callable(kind.paren.span))),
         }
     }
+
+    fn eval_get(&mut self, _expr: &Expr, kind: &GetExpr) -> ExecutionResult {
+        let object = self.evaluate(&kind.object)?;
+
+        if let Value::Instance(inst) = object {
+            inst.get(&kind.name).map_err(Control::from)
+
+        } else {
+            Err(Control::from(Error::runtime(&kind.name.clone(), "Only instances have fields.")))
+        }
+    }
+
 
     fn eval_function(&self, _expr: &Expr, kind: &FunctionExpr) -> ExecutionResult {
         Ok(Value::from(kind.clone()))
@@ -642,4 +670,21 @@ class DevonshireCream {
             Value::Nil
         );
     }
+
+    #[test]
+    fn interpret_get_set_properties() {
+        assert_eq!(
+            eval(
+                r#"
+class Bagel {}
+var bagel = Bagel();
+bagel.foo = 100;
+bagel.bar = 10;
+bagel.foo;
+"#
+            ),
+            Value::Num(100.0)
+        );
+    }
+
 }

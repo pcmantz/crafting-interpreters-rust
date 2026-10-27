@@ -68,6 +68,7 @@ impl CallableKind {
 pub enum Value {
     Class(Rc<LoxClass>),
     Fun(Rc<CallableKind>),
+    Instance(Rc<LoxInstance>),
     Str(String),
     Num(f64),
     Bool(bool),
@@ -79,6 +80,7 @@ impl fmt::Display for Value {
         match self {
             Value::Class(klass) => write!(f, "<class {}>", klass.name),
             Value::Fun(fun) => write!(f, "<fun {}>", fun.name()),
+            Value::Instance(inst) => write!(f, "<instance {}>", inst.klass.name),
             Value::Str(str) => write!(f, "{str}"),
             Value::Num(n) => write!(f, "{n}"),
             Value::Bool(true) => write!(f, "true"),
@@ -93,6 +95,7 @@ impl PartialEq for Value {
         match (self, other) {
             (Value::Class(s), Value::Class(o)) => Rc::ptr_eq(s, o),
             (Value::Fun(s), Value::Fun(o)) => Rc::ptr_eq(s, o),
+            (Value::Instance(s), Value::Instance(o)) => Rc::ptr_eq(s, o),
             (Value::Str(s), Value::Str(o)) => s == o,
             (Value::Num(s), Value::Num(o)) => s == o,
             (Value::Bool(s), Value::Bool(o)) => s == o,
@@ -129,6 +132,12 @@ impl From<FunctionExpr> for Value {
 impl From<NativeFunction> for Value {
     fn from(source: NativeFunction) -> Self {
         Self::Fun(Rc::new(CallableKind::from(source)))
+    }
+}
+
+impl From<LoxInstance> for Value {
+    fn from(source: LoxInstance) -> Self {
+        Self::Instance(Rc::new(source))
     }
 }
 

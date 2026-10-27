@@ -26,11 +26,13 @@ impl fmt::Display for Expr {
 pub enum ExprKind {
     Literal(LiteralExpr),
     Logical(LogicalExpr),
+    Set(SetExpr),
     Variable(VariableExpr),
     Assign(AssignExpr),
     Unary(UnaryExpr),
     Binary(BinaryExpr),
     Call(CallExpr),
+    Get(GetExpr),
     Grouping(GroupingExpr),
     Function(FunctionExpr),
 }
@@ -40,12 +42,14 @@ impl fmt::Display for ExprKind {
         match self {
             ExprKind::Literal(e) => write!(f, "{}", e.value),
             ExprKind::Logical(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
+            ExprKind::Set(e) => todo!(),
             ExprKind::Unary(e) => write!(f, "({} {})", e.operator.lexeme, e.right),
             ExprKind::Binary(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
             ExprKind::Grouping(e) => write!(f, "(group {})", e.expression),
             ExprKind::Variable(e) => write!(f, "{}", e.name),
             ExprKind::Assign(e) => write!(f, "(= {} {})", e.name, e.expression),
             ExprKind::Call(e) => write!(f, "({} {})", e.callee, e.arguments.iter().join(" ")),
+            ExprKind::Get(e) => todo!(),
             ExprKind::Function(_) => write!(f, "(fn <anonymous>)"),
         }
     }
@@ -61,6 +65,14 @@ impl ExprKind {
             left: Box::new(left),
             operator,
             right: Box::new(right),
+        })
+    }
+
+    pub fn set(object: Expr, name: Token, value: Expr) -> ExprKind {
+        ExprKind::Set(SetExpr {
+            object: Box::new(object),
+            name,
+            value: Box::new(value),
         })
     }
 
@@ -84,6 +96,13 @@ impl ExprKind {
             callee: Box::new(callee),
             paren,
             arguments,
+        })
+    }
+
+    pub fn get(object: Expr, name: Token) -> ExprKind {
+        ExprKind::Get(GetExpr {
+            object: Box::new(object),
+            name,
         })
     }
 
@@ -128,6 +147,13 @@ pub struct LogicalExpr {
 }
 
 #[derive(Debug, Clone)]
+pub struct SetExpr {
+    pub object: Box<Expr>,
+    pub name: Token,
+    pub value: Box<Expr>,
+}
+
+#[derive(Debug, Clone)]
 pub struct UnaryExpr {
     pub operator: Token,
     pub right: Box<Expr>,
@@ -145,6 +171,12 @@ pub struct CallExpr {
     pub callee: Box<Expr>,
     pub paren: Token,
     pub arguments: Vec<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetExpr {
+    pub object: Box<Expr>,
+    pub name: Token,
 }
 
 #[derive(Debug, Clone)]
