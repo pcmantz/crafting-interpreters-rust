@@ -117,6 +117,12 @@ impl From<LoxClass> for Value {
     }
 }
 
+impl From<Function> for Value {
+    fn from(source: Function) -> Self {
+        Self::Fun(Rc::new(CallableKind::from(source)))
+    }
+}
+
 impl From<FunctionStmt> for Value {
     fn from(source: FunctionStmt) -> Self {
         Self::Fun(Rc::new(CallableKind::from(Function::from(source))))

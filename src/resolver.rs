@@ -143,6 +143,18 @@ impl<'a> Resolver<'a> {
     pub fn resolve_class_statement(&mut self, kind: &ClassStmt) {
         self.declare(&kind.name);
         self.define(&kind.name);
+
+        for method in &kind.methods {
+            match &method.kind {
+                StmtKind::Function(fs) => self.resolve_function_statement(fs),
+
+                /* NOTE: unreachable */
+                _ => self.errors.push(Error::resolver(
+                    method.span,
+                    "non-function found in class body",
+                )),
+            };
+        }
     }
 
     pub fn resolve_var_statement(&mut self, kind: &VarStmt) {

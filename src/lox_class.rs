@@ -12,25 +12,33 @@ use crate::value::*;
 
 use crate::interpreter::*;
 
+pub type MethodMap = HashMap<String, Function>;
+
 #[derive(Debug)]
 pub struct LoxClass {
     pub name: Token,
-    // pub methods: Vec<Function>,
+    pub methods: MethodMap,
 }
 
 impl From<ClassStmt> for LoxClass {
     fn from(source: ClassStmt) -> Self {
         Self {
             name: source.name,
-            //     methods: source
-            //         .methods
-            //         .into_iter()
-            //         .map(|s| match &s.kind {
-            //             StmtKind::Function(k) => Function::from(k),
-            //             _ => unreachable!(),
-            //         })
-            //         .collect(),
+            methods: source
+                .methods
+                .into_iter()
+                .filter_map(|m| match m.kind {
+                    StmtKind::Function(k) => Some((k.name.lexeme.clone(), Function::from(k))),
+                    _ => unreachable!("non-function in class body"),
+                })
+                .collect(),
         }
+    }
+}
+
+impl LoxClass {
+    fn find_method(&self, name: &String) -> Option<&Function> {
+        self.methods.get(name)
     }
 }
 
@@ -63,12 +71,15 @@ impl LoxInstance {
     }
 
     pub fn get(&self, name: &Token) -> Result<Value, Error> {
-        match self.fields.borrow().get(&name.lexeme) {
-            Some(val) => Ok(val.clone()),
-            None => Err(Error::runtime(
+        if let Some(val) = self.fields.borrow().get(&name.lexeme) {
+            Ok(val.clone())
+        } else if let Some(method) = self.klass.find_method(&name.lexeme) {
+            Ok(Value::from(method.clone()))
+        } else {
+            Err(Error::runtime(
                 name,
                 format!("Undefined property '{}'", name.lexeme),
-            )),
+            ))
         }
     }
 

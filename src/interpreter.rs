@@ -96,6 +96,8 @@ impl Interpreter {
 
     fn class_statement(&mut self, stmt: &ClassStmt) -> ExecutionResult {
         self.env.define(&stmt.name.lexeme, Value::Nil);
+
+        /* Note: Also installs the methods */
         let klass = Value::from(stmt.clone());
         self.env.assign(&stmt.name.lexeme, klass);
 
@@ -240,7 +242,10 @@ impl Interpreter {
 
             Ok(value)
         } else {
-            Err(Control::from(Error::runtime(&kind.name.clone(), "Only instances have fields.")))
+            Err(Control::from(Error::runtime(
+                &kind.name.clone(),
+                "Only instances have fields.",
+            )))
         }
     }
 
@@ -352,12 +357,13 @@ impl Interpreter {
 
         if let Value::Instance(inst) = object {
             inst.get(&kind.name).map_err(Control::from)
-
         } else {
-            Err(Control::from(Error::runtime(&kind.name.clone(), "Only instances have fields.")))
+            Err(Control::from(Error::runtime(
+                &kind.name.clone(),
+                "Only instances have fields.",
+            )))
         }
     }
-
 
     fn eval_function(&self, _expr: &Expr, kind: &FunctionExpr) -> ExecutionResult {
         Ok(Value::from(kind.clone()))
@@ -687,4 +693,21 @@ bagel.foo;
         );
     }
 
+    #[test]
+    fn interpret_method_call() {
+        assert_eq!(
+            eval(
+                r#"
+class DevonshireCream {
+    serveOn() {
+        return "scones";
+    }
+}
+var cream = DevonshireCream();
+cream.serveOn();
+"#
+            ),
+            Value::Str(String::from("scones"))
+        );
+    }
 }

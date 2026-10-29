@@ -24,6 +24,9 @@ pub enum ErrorKind {
     MissingExpression {
         message: String,
     },
+    Resolver {
+        message: String,
+    },
     Runtime {
         message: String,
     },
@@ -46,6 +49,7 @@ impl fmt::Display for Error {
             ErrorKind::ScannerError { message } | ErrorKind::MissingExpression { message } => {
                 write!(f, "{}", message)
             }
+            ErrorKind::Resolver { message, .. } => write!(f, "{}", message),
             ErrorKind::Runtime { message, .. } => write!(f, "{}", message),
             ErrorKind::InvalidAssignment { .. } => write!(f, "Invalid assignment."),
             ErrorKind::TooManyArguments { .. } => write!(f, "Too many arguments to function."),
@@ -85,6 +89,15 @@ impl Error {
                 message: message.into(),
             },
             span: token.span,
+        }
+    }
+
+    pub fn resolver(span: Span, message: impl Into<String>) -> Error {
+        Error {
+            kind: ErrorKind::Resolver {
+                message: message.into(),
+            },
+            span,
         }
     }
 
