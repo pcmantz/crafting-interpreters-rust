@@ -11,6 +11,7 @@ use crate::lox_class::*;
 use crate::stmt::*;
 use crate::token::*;
 
+use crate::environment::*;
 use crate::interpreter::*;
 
 #[derive(Debug, Clone)]
@@ -105,12 +106,6 @@ impl PartialEq for Value {
     }
 }
 
-impl From<ClassStmt> for Value {
-    fn from(source: ClassStmt) -> Self {
-        Self::Class(Rc::from(LoxClass::from(source)))
-    }
-}
-
 impl From<LoxClass> for Value {
     fn from(source: LoxClass) -> Self {
         Self::Class(Rc::new(source))
@@ -120,18 +115,6 @@ impl From<LoxClass> for Value {
 impl From<Function> for Value {
     fn from(source: Function) -> Self {
         Self::Fun(Rc::new(CallableKind::from(source)))
-    }
-}
-
-impl From<FunctionStmt> for Value {
-    fn from(source: FunctionStmt) -> Self {
-        Self::Fun(Rc::new(CallableKind::from(Function::from(source))))
-    }
-}
-
-impl From<FunctionExpr> for Value {
-    fn from(source: FunctionExpr) -> Self {
-        Self::Fun(Rc::new(CallableKind::from(Function::from(source))))
     }
 }
 
@@ -165,5 +148,23 @@ impl Value {
         fun: fn(&[Value]) -> Result<Value, Error>,
     ) -> Value {
         Value::from(NativeFunction { name, arity, fun })
+    }
+
+    pub fn from_function_stmt_with_closure(stmt: FunctionStmt, closure: Environment) -> Value {
+        Value::Fun(Rc::new(CallableKind::User(
+            Function::from_stmt_with_closure(stmt, closure),
+        )))
+    }
+
+    pub fn from_function_expr_with_closure(expr: FunctionExpr, closure: Environment) -> Value {
+        Value::Fun(Rc::new(CallableKind::User(
+            Function::from_expr_with_closure(expr, closure),
+        )))
+    }
+
+    pub fn from_class_stmt_with_closure(stmt: ClassStmt, closure: Environment) -> Value {
+        Value::Class(Rc::new(LoxClass::from_class_stmt_with_closure(
+            stmt, closure,
+        )))
     }
 }

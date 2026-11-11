@@ -10,6 +10,7 @@ use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
 
+use crate::environment::*;
 use crate::interpreter::*;
 
 pub trait Callable {
@@ -30,59 +31,38 @@ pub struct FunctionDef {
     pub statements: Vec<Stmt>,
 }
 
-impl Callable for FunctionDef {
+impl FunctionDef {
     fn arity(&self) -> usize {
         self.params.len()
     }
 
-    fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, Error> {
-        let child = interpreter.env.child();
-        let parent = child.enclosing().unwrap();
-
-        interpreter.env = child;
-
+    fn call_in_env(
+        &self,
+        interpreter: &mut Interpreter,
+        arguments: &[Value],
+        env: Environment,
+    ) -> Result<Value, Error> {
         for (i, param) in self.params.iter().enumerate() {
             let name = &param.lexeme;
             let value = arguments[i].clone();
 
-            interpreter.env.define(name, value);
+            env.define(name, value);
         }
 
-        let res = match interpreter.execute_statements(&self.statements) {
+        match interpreter.execute_statements_in_env(&self.statements, env) {
             Ok(_) => Ok(Value::Nil),
             Err(Control::Return { value: v, .. }) => Ok(v),
             Err(Control::Error(e)) => Err(e),
             Err(Control::Break { keyword: k }) => Err(Error::runtime(&k, "break outside loop.")),
-        };
-
-        interpreter.env = parent;
-
-        res
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: Option<String>,
+    pub closure: Environment,
     pub def: Rc<FunctionDef>,
-}
-
-impl From<FunctionStmt> for Function {
-    fn from(source: FunctionStmt) -> Self {
-        Self {
-            name: Some(source.name.lexeme),
-            def: Rc::clone(&source.def),
-        }
-    }
-}
-
-impl From<FunctionExpr> for Function {
-    fn from(source: FunctionExpr) -> Self {
-        Self {
-            name: None,
-            def: Rc::clone(&source.def),
-        }
-    }
 }
 
 impl Callable for Function {
@@ -91,7 +71,38 @@ impl Callable for Function {
     }
 
     fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, Error> {
-        self.def.call(interpreter, arguments)
+        let env = self.closure.child();
+
+        self.def.call_in_env(interpreter, arguments, env)
+    }
+}
+
+impl Function {
+    pub fn from_stmt_with_closure(stmt: FunctionStmt, closure: Environment) -> Self {
+        Self {
+            name: Some(stmt.name.lexeme.clone()),
+            closure,
+            def: Rc::clone(&stmt.def),
+        }
+    }
+
+    pub fn from_expr_with_closure(expr: FunctionExpr, closure: Environment) -> Self {
+        Self {
+            name: None,
+            closure,
+            def: Rc::clone(&expr.def),
+        }
+    }
+
+    pub fn bind(&mut self, instance: Value) -> Self {
+        let env = self.closure.child();
+        env.define("this", instance);
+
+        Self {
+            name: self.name.clone(),
+            closure: env,
+            def: self.def.clone(),
+        }
     }
 }
 

@@ -98,7 +98,7 @@ impl Interpreter {
         self.env.define(&stmt.name.lexeme, Value::Nil);
 
         /* Note: Also installs the methods */
-        let klass = Value::from(stmt.clone());
+        let klass = Value::from_class_stmt_with_closure(stmt.clone(), self.env.clone());
         self.env.assign(&stmt.name.lexeme, klass);
 
         Ok(Value::Nil)
@@ -116,7 +116,7 @@ impl Interpreter {
     }
 
     fn function_statement(&self, stmt: &FunctionStmt) -> ExecutionResult {
-        let val = Value::from(stmt.clone());
+        let val = Value::from_function_stmt_with_closure(stmt.clone(), self.env.clone());
         self.env.define(&stmt.name.lexeme, val);
 
         Ok(Value::Nil)
@@ -129,12 +129,19 @@ impl Interpreter {
     }
 
     fn block_statement(&mut self, stmt: &BlockStmt) -> ExecutionResult {
-        let child = self.env.child();
-        let parent = child.enclosing().unwrap();
+        self.execute_statements_in_env(&stmt.statements, self.env.child())
+    }
 
-        self.env = child;
-        let res = self.execute_statements(&stmt.statements);
-        self.env = parent;
+    pub fn execute_statements_in_env(
+        &mut self,
+        statements: &[Stmt],
+        env: Environment,
+    ) -> ExecutionResult {
+        let previous = self.env.clone();
+        self.env = env;
+
+        let res = self.execute_statements(statements);
+        self.env = previous;
 
         res
     }
@@ -366,7 +373,10 @@ impl Interpreter {
     }
 
     fn eval_function(&self, _expr: &Expr, kind: &FunctionExpr) -> ExecutionResult {
-        Ok(Value::from(kind.clone()))
+        Ok(Value::from_function_expr_with_closure(
+            kind.clone(),
+            self.env.clone(),
+        ))
     }
 
     /* Helpers */
