@@ -144,6 +144,9 @@ impl<'a> Resolver<'a> {
         self.declare(&kind.name);
         self.define(&kind.name);
 
+        self.begin_scope();
+        self.declare_and_define_lexeme("this");
+
         for method in &kind.methods {
             match &method.kind {
                 StmtKind::Function(fs) => self.resolve_function_statement(fs),
@@ -155,6 +158,8 @@ impl<'a> Resolver<'a> {
                 )),
             };
         }
+
+        self.end_scope();
     }
 
     pub fn resolve_var_statement(&mut self, kind: &VarStmt) {
@@ -226,6 +231,7 @@ impl<'a> Resolver<'a> {
             ExprKind::Literal(_) => {} /* nothing to do */
             ExprKind::Logical(e) => self.resolve_logical_expression(e),
             ExprKind::Set(e) => self.resolve_set_expression(e),
+            ExprKind::This(e) => self.resolve_this_expression(e),
             ExprKind::Variable(e) => self.resolve_variable_expression(expr, e),
             ExprKind::Assign(e) => self.resolve_assign_expression(expr, e),
             ExprKind::Unary(e) => self.resolve_unary_expression(e),
@@ -245,6 +251,10 @@ impl<'a> Resolver<'a> {
     pub fn resolve_set_expression(&mut self, kind: &SetExpr) {
         self.resolve_expression(&kind.value);
         self.resolve_expression(&kind.object);
+    }
+
+    pub fn resolve_this_expression(&mut self, kind: &ThisExpr) {
+        self.resolve_expression(&kind.keyword);
     }
 
     pub fn resolve_variable_expression(&mut self, expr: &Expr, kind: &VariableExpr) {
@@ -311,6 +321,11 @@ impl<'a> Resolver<'a> {
 
     fn define(&mut self, name: &Token) {
         self.scopes.define(&name.lexeme);
+    }
+
+    fn declare_and_define_lexeme(&mut self, lexeme: &str) {
+        self.scopes.declare(lexeme);
+        self.scopes.define(lexeme);
     }
 
     fn is_declared(&mut self, name: &Token) -> bool {

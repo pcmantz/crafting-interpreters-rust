@@ -362,8 +362,8 @@ impl Interpreter {
     fn eval_get(&mut self, _expr: &Expr, kind: &GetExpr) -> ExecutionResult {
         let object = self.evaluate(&kind.object)?;
 
-        if let Value::Instance(inst) = object {
-            inst.get(&kind.name).map_err(Control::from)
+        if let Value::Instance(instance) = object {
+            instance.get(&kind.name).map_err(Control::from)
         } else {
             Err(Control::from(Error::runtime(
                 &kind.name.clone(),

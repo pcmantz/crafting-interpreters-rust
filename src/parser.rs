@@ -520,6 +520,8 @@ impl Parser {
                 Ok(self.make_expr(&token, ExprKind::grouping(expr)))
             }
 
+            TokenType::This => Ok(self.make_expr(&token, ExprKind::this(token.clone()))),
+
             TokenType::Identifier(_) => {
                 Ok(self.make_expr(&token, ExprKind::variable(token.clone())))
             }

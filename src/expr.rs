@@ -27,6 +27,7 @@ pub enum ExprKind {
     Literal(LiteralExpr),
     Logical(LogicalExpr),
     Set(SetExpr),
+    This(ThisExpr),
     Variable(VariableExpr),
     Assign(AssignExpr),
     Unary(UnaryExpr),
@@ -43,6 +44,7 @@ impl fmt::Display for ExprKind {
             ExprKind::Literal(e) => write!(f, "{}", e.value),
             ExprKind::Logical(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
             ExprKind::Set(e) => todo!(),
+            ExprKind::This(e) => todo!(),
             ExprKind::Unary(e) => write!(f, "({} {})", e.operator.lexeme, e.right),
             ExprKind::Binary(e) => write!(f, "({} {} {})", e.operator.lexeme, e.left, e.right),
             ExprKind::Grouping(e) => write!(f, "(group {})", e.expression),
@@ -74,6 +76,10 @@ impl ExprKind {
             name,
             value: Box::new(value),
         })
+    }
+
+    pub fn this(keyword: Token) -> ExprKind {
+        ExprKind::This(ThisExpr { keyword })
     }
 
     pub fn unary(operator: Token, expr: Expr) -> ExprKind {
@@ -151,6 +157,11 @@ pub struct SetExpr {
     pub object: Box<Expr>,
     pub name: Token,
     pub value: Box<Expr>,
+}
+
+#[derive(Debug, Clone)]
+struct ThisExpr {
+    pub keyword: Token,
 }
 
 #[derive(Debug, Clone)]
