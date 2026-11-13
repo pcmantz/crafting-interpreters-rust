@@ -67,9 +67,9 @@ impl CallableKind {
 
 #[derive(Debug, Clone)]
 pub enum Value {
-    Class(Rc<LoxClass>),
+    Class(LoxClass),
     Fun(Rc<CallableKind>),
-    Instance(Rc<LoxInstance>),
+    Instance(LoxInstance),
     Str(String),
     Num(f64),
     Bool(bool),
@@ -79,9 +79,9 @@ pub enum Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Class(klass) => write!(f, "<class {}>", klass.name),
+            Value::Class(klass) => write!(f, "<class {}>", klass.0.name),
             Value::Fun(fun) => write!(f, "<fun {}>", fun.name()),
-            Value::Instance(inst) => write!(f, "<instance {}>", inst.klass.name),
+            Value::Instance(inst) => write!(f, "<instance {}>", inst.0.klass.0.name),
             Value::Str(str) => write!(f, "{str}"),
             Value::Num(n) => write!(f, "{n}"),
             Value::Bool(true) => write!(f, "true"),
@@ -94,9 +94,9 @@ impl fmt::Display for Value {
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Value::Class(s), Value::Class(o)) => Rc::ptr_eq(s, o),
+            (Value::Class(s), Value::Class(o)) => s == o,
             (Value::Fun(s), Value::Fun(o)) => Rc::ptr_eq(s, o),
-            (Value::Instance(s), Value::Instance(o)) => Rc::ptr_eq(s, o),
+            (Value::Instance(s), Value::Instance(o)) => s == o,
             (Value::Str(s), Value::Str(o)) => s == o,
             (Value::Num(s), Value::Num(o)) => s == o,
             (Value::Bool(s), Value::Bool(o)) => s == o,
@@ -108,7 +108,7 @@ impl PartialEq for Value {
 
 impl From<LoxClass> for Value {
     fn from(source: LoxClass) -> Self {
-        Self::Class(Rc::new(source))
+        Self::Class(source)
     }
 }
 
@@ -126,7 +126,7 @@ impl From<NativeFunction> for Value {
 
 impl From<LoxInstance> for Value {
     fn from(source: LoxInstance) -> Self {
-        Self::Instance(Rc::new(source))
+        Self::Instance(source)
     }
 }
 
@@ -163,8 +163,6 @@ impl Value {
     }
 
     pub fn from_class_stmt_with_closure(stmt: ClassStmt, closure: Environment) -> Value {
-        Value::Class(Rc::new(LoxClass::from_class_stmt_with_closure(
-            stmt, closure,
-        )))
+        Value::Class(LoxClass::from_class_stmt_with_closure(stmt, closure))
     }
 }
