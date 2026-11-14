@@ -160,7 +160,7 @@ pub struct SetExpr {
 }
 
 #[derive(Debug, Clone)]
-struct ThisExpr {
+pub struct ThisExpr {
     pub keyword: Token,
 }
 

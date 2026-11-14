@@ -103,10 +103,17 @@ pub fn resolve(interpreter: &mut Interpreter, program: &Program) -> Result<(), R
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ClassType {
+    None,
+    Class,
+}
+
 #[derive(Debug)]
 pub struct Resolver<'a> {
     pub interpreter: &'a mut Interpreter,
     pub scopes: ScopeStack,
+    pub current_class: ClassType,
     pub errors: Vec<Error>,
 }
 
@@ -115,6 +122,7 @@ impl<'a> Resolver<'a> {
         Self {
             interpreter,
             scopes: ScopeStack::default(),
+            current_class: ClassType::None,
             errors: Vec::new(),
         }
     }
@@ -144,6 +152,9 @@ impl<'a> Resolver<'a> {
         self.declare(&kind.name);
         self.define(&kind.name);
 
+        let enclosing_class = self.current_class;
+        self.current_class = ClassType::Class;
+
         self.begin_scope();
         self.declare_and_define_lexeme("this");
 
@@ -160,6 +171,8 @@ impl<'a> Resolver<'a> {
         }
 
         self.end_scope();
+
+        self.current_class = enclosing_class;
     }
 
     pub fn resolve_var_statement(&mut self, kind: &VarStmt) {
@@ -231,7 +244,7 @@ impl<'a> Resolver<'a> {
             ExprKind::Literal(_) => {} /* nothing to do */
             ExprKind::Logical(e) => self.resolve_logical_expression(e),
             ExprKind::Set(e) => self.resolve_set_expression(e),
-            ExprKind::This(e) => self.resolve_this_expression(e),
+            ExprKind::This(e) => self.resolve_this_expression(expr, e),
             ExprKind::Variable(e) => self.resolve_variable_expression(expr, e),
             ExprKind::Assign(e) => self.resolve_assign_expression(expr, e),
             ExprKind::Unary(e) => self.resolve_unary_expression(e),
@@ -253,8 +266,12 @@ impl<'a> Resolver<'a> {
         self.resolve_expression(&kind.object);
     }
 
-    pub fn resolve_this_expression(&mut self, kind: &ThisExpr) {
-        self.resolve_expression(&kind.keyword);
+    pub fn resolve_this_expression(&mut self, expr: &Expr, kind: &ThisExpr) {
+        if matches!(self.current_class, ClassType::None) {
+            self.errors.push(Error::this_outside_class(expr.span));
+        }
+
+        self.resolve_local(expr, &kind.keyword);
     }
 
     pub fn resolve_variable_expression(&mut self, expr: &Expr, kind: &VariableExpr) {

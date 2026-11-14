@@ -96,7 +96,9 @@ impl LoxInstance {
         if let Some(val) = self.0.fields.borrow().get(&name.lexeme) {
             Ok(val.clone())
         } else if let Some(method) = self.0.klass.find_method(&name.lexeme) {
-            Ok(Value::from(method.clone()))
+            let bound_method = method.bind(Value::from(self.clone()));
+
+            Ok(Value::from(bound_method))
         } else {
             Err(Error::runtime(
                 name,

@@ -94,7 +94,7 @@ impl Function {
         }
     }
 
-    pub fn bind(&mut self, instance: Value) -> Self {
+    pub fn bind(&self, instance: Value) -> Self {
         let env = self.closure.child();
         env.define("this", instance);
 

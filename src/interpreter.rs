@@ -207,6 +207,7 @@ impl Interpreter {
             ExprKind::Literal(e) => Ok(e.value.clone()),
             ExprKind::Logical(e) => self.eval_logical(expr, e),
             ExprKind::Set(e) => self.eval_set(expr, e),
+            ExprKind::This(e) => self.eval_this(expr, e),
             ExprKind::Variable(e) => self.eval_variable(expr, e),
             ExprKind::Assign(e) => self.eval_assign(expr, e),
             ExprKind::Unary(e) => self.eval_unary(expr, e),
@@ -254,6 +255,10 @@ impl Interpreter {
                 "Only instances have fields.",
             )))
         }
+    }
+
+    fn eval_this(&mut self, expr: &Expr, kind: &ThisExpr) -> ExecutionResult {
+        self.look_up_variable(&kind.keyword, expr)
     }
 
     fn eval_variable(&self, expr: &Expr, kind: &VariableExpr) -> ExecutionResult {
@@ -414,6 +419,8 @@ impl Interpreter {
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches;
+
     use eyre;
 
     use super::*;
@@ -719,5 +726,33 @@ cream.serveOn();
             ),
             Value::Str(String::from("scones"))
         );
+    }
+
+    #[test]
+    fn interpret_this() {
+        assert_eq!(
+            eval(
+                r#"
+class Foo {
+    getValue() {
+        return this.value;
+    }
+}
+
+var foo = Foo();
+foo.value = 10;
+var bar = foo.getValue();
+foo.value = 20;
+var baz = bar + foo.value;
+baz;
+"#
+            ),
+            Value::Num(30.0)
+        );
+    }
+
+    #[test]
+    fn interpret_this_outside_class() {
+        assert!(eval_err("this;").contains("outside of a class."));
     }
 }

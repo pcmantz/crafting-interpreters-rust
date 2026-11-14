@@ -36,6 +36,7 @@ pub enum ErrorKind {
         // called: Token,
     },
     VariableUsedInDeclaration {},
+    ThisOutsideClass {},
 }
 
 impl fmt::Display for Error {
@@ -56,6 +57,9 @@ impl fmt::Display for Error {
             ErrorKind::ValueNotCallable { .. } => write!(f, "Value not callable."),
             ErrorKind::VariableUsedInDeclaration { .. } => {
                 write!(f, "Can't read local variable in its own initializer.")
+            }
+            ErrorKind::ThisOutsideClass { .. } => {
+                write!(f, "Can't use 'this' outside of a class..")
             }
         }
     }
@@ -136,6 +140,13 @@ impl Error {
     pub fn var_used_in_declaration(span: Span) -> Error {
         Error {
             kind: ErrorKind::VariableUsedInDeclaration {},
+            span,
+        }
+    }
+
+    pub fn this_outside_class(span: Span) -> Error {
+        Error {
+            kind: ErrorKind::ThisOutsideClass {},
             span,
         }
     }
