@@ -15,43 +15,52 @@ use crate::environment::*;
 use crate::interpreter::*;
 
 #[derive(Debug, Clone)]
-pub enum CallableKind {
+pub enum CallableKindInner {
     User(Function),
     Native(NativeFunction),
 }
 
+#[derive(Debug, Clone)]
+pub struct CallableKind(Rc<CallableKindInner>);
+
 impl From<Function> for CallableKind {
     fn from(source: Function) -> Self {
-        Self::User(source)
+        Self(Rc::new(CallableKindInner::User(source)))
     }
 }
 
 impl From<NativeFunction> for CallableKind {
     fn from(source: NativeFunction) -> Self {
-        Self::Native(source)
+        Self(Rc::new(CallableKindInner::Native(source)))
+    }
+}
+
+impl PartialEq for CallableKind {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
     }
 }
 
 impl Callable for CallableKind {
     fn arity(&self) -> usize {
-        match self {
-            CallableKind::User(f) => f.arity(),
-            CallableKind::Native(f) => f.arity(),
+        match self.0.as_ref() {
+            CallableKindInner::User(f) => f.arity(),
+            CallableKindInner::Native(f) => f.arity(),
         }
     }
 
     fn call(&self, interpreter: &mut Interpreter, args: &[Value]) -> Result<Value, Error> {
-        match self {
-            CallableKind::User(f) => f.call(interpreter, args),
-            CallableKind::Native(f) => f.call(interpreter, args),
+        match self.0.as_ref() {
+            CallableKindInner::User(f) => f.call(interpreter, args),
+            CallableKindInner::Native(f) => f.call(interpreter, args),
         }
     }
 }
 
 impl CallableKind {
     fn name(&self) -> &str {
-        match self {
-            CallableKind::User(f) => {
+        match self.0.as_ref() {
+            CallableKindInner::User(f) => {
                 let name = &f.name;
 
                 match name {
@@ -60,7 +69,7 @@ impl CallableKind {
                 }
             }
 
-            CallableKind::Native(f) => &f.name,
+            CallableKindInner::Native(f) => &f.name,
         }
     }
 }
@@ -68,7 +77,7 @@ impl CallableKind {
 #[derive(Debug, Clone)]
 pub enum Value {
     Class(LoxClass),
-    Fun(Rc<CallableKind>),
+    Fun(CallableKind),
     Instance(LoxInstance),
     Str(String),
     Num(f64),
@@ -95,7 +104,7 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Value::Class(s), Value::Class(o)) => s == o,
-            (Value::Fun(s), Value::Fun(o)) => Rc::ptr_eq(s, o),
+            (Value::Fun(s), Value::Fun(o)) => s == o,
             (Value::Instance(s), Value::Instance(o)) => s == o,
             (Value::Str(s), Value::Str(o)) => s == o,
             (Value::Num(s), Value::Num(o)) => s == o,
@@ -114,13 +123,13 @@ impl From<LoxClass> for Value {
 
 impl From<Function> for Value {
     fn from(source: Function) -> Self {
-        Self::Fun(Rc::new(CallableKind::from(source)))
+        Self::Fun(CallableKind::from(source))
     }
 }
 
 impl From<NativeFunction> for Value {
     fn from(source: NativeFunction) -> Self {
-        Self::Fun(Rc::new(CallableKind::from(source)))
+        Self::Fun(CallableKind::from(source))
     }
 }
 
@@ -151,14 +160,14 @@ impl Value {
     }
 
     pub fn from_function_stmt_with_closure(stmt: FunctionStmt, closure: Environment) -> Value {
-        Value::Fun(Rc::new(CallableKind::User(
-            Function::from_stmt_with_closure(stmt, closure),
+        Value::Fun(CallableKind::from(Function::from_stmt_with_closure(
+            stmt, closure,
         )))
     }
 
     pub fn from_function_expr_with_closure(expr: FunctionExpr, closure: Environment) -> Value {
-        Value::Fun(Rc::new(CallableKind::User(
-            Function::from_expr_with_closure(expr, closure),
+        Value::Fun(CallableKind::from(Function::from_expr_with_closure(
+            expr, closure,
         )))
     }
 
