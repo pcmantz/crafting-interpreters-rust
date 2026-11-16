@@ -18,9 +18,10 @@ pub trait Callable {
     fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, Error>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum FunctionKind {
     Function,
+    Initializer,
     Method,
 }
 
@@ -61,8 +62,9 @@ impl FunctionDef {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: Option<String>,
-    pub closure: Environment,
     pub def: Rc<FunctionDef>,
+    pub closure: Environment,
+    pub is_initializer: bool,
 }
 
 impl Callable for Function {
@@ -72,17 +74,30 @@ impl Callable for Function {
 
     fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, Error> {
         let env = self.closure.child();
+        let res = self.def.call_in_env(interpreter, arguments, env)?;
 
-        self.def.call_in_env(interpreter, arguments, env)
+        if self.is_initializer {
+            Ok(self
+                .closure
+                .get_at(0, "this")
+                .expect("initializer bound without 'this' in scope"))
+        } else {
+            Ok(res)
+        }
     }
 }
 
 impl Function {
     pub fn from_stmt_with_closure(stmt: FunctionStmt, closure: Environment) -> Self {
+        let name_string = stmt.name.lexeme.clone();
+        let is_initializer =
+            matches!(stmt.def.kind, FunctionKind::Method) && name_string == "init".to_string();
+
         Self {
-            name: Some(stmt.name.lexeme.clone()),
+            name: Some(name_string),
             closure,
             def: Rc::clone(&stmt.def),
+            is_initializer,
         }
     }
 
@@ -91,6 +106,7 @@ impl Function {
             name: None,
             closure,
             def: Rc::clone(&expr.def),
+            is_initializer: false,
         }
     }
 
@@ -102,6 +118,7 @@ impl Function {
             name: self.name.clone(),
             closure: env,
             def: self.def.clone(),
+            is_initializer: self.is_initializer,
         }
     }
 }

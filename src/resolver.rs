@@ -114,6 +114,7 @@ pub struct Resolver<'a> {
     pub interpreter: &'a mut Interpreter,
     pub scopes: ScopeStack,
     pub current_class: ClassType,
+    pub current_function: Option<FunctionKind>,
     pub errors: Vec<Error>,
 }
 
@@ -123,6 +124,7 @@ impl<'a> Resolver<'a> {
             interpreter,
             scopes: ScopeStack::default(),
             current_class: ClassType::None,
+            current_function: None,
             errors: Vec::new(),
         }
     }
@@ -217,6 +219,11 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_return_statement(&mut self, kind: &ReturnStmt) {
         if let Some(value) = &kind.value {
+            if matches!(self.current_function, Some(FunctionKind::Initializer)) {
+                self.errors
+                    .push(Error::return_value_in_initializer(kind.keyword.span));
+            }
+
             self.resolve_expression(value);
         }
     }
@@ -227,6 +234,9 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_function_def(&mut self, def: &FunctionDef) {
+        let enclosing_function = self.current_function;
+        self.current_function = Some(def.kind);
+
         self.begin_scope();
 
         for param in &def.params {
@@ -237,6 +247,7 @@ impl<'a> Resolver<'a> {
         self.resolve_statements(&def.statements);
 
         self.end_scope();
+        self.current_function = enclosing_function;
     }
 
     pub fn resolve_expression(&mut self, expr: &Expr) {

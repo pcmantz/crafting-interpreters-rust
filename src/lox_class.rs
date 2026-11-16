@@ -32,13 +32,23 @@ impl PartialEq for LoxClass {
 
 impl Callable for LoxClass {
     fn arity(&self) -> usize {
-        0
+        if let Some(initializer) = self.find_method(&String::from("init")) {
+            initializer.arity()
+        } else {
+            0
+        }
     }
 
-    fn call(&self, interpreter: &mut Interpreter, _arguments: &[Value]) -> Result<Value, Error> {
-        let instance = LoxInstance::for_class(self.clone());
+    fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, Error> {
+        let instance_value = Value::from(LoxInstance::for_class(self.clone()));
 
-        Ok(Value::from(instance))
+        if let Some(initializer) = self.find_method(&String::from("init")) {
+            initializer
+                .bind(instance_value.clone())
+                .call(interpreter, arguments)?;
+        }
+
+        Ok(instance_value)
     }
 }
 

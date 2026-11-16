@@ -122,10 +122,16 @@ impl StmtKind {
     }
 
     pub fn method(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> StmtKind {
+        let kind = if name.lexeme == "init".to_string() {
+            FunctionKind::Initializer
+        } else {
+            FunctionKind::Method
+        };
+
         StmtKind::Function(FunctionStmt {
             name,
             def: Rc::new(FunctionDef {
-                kind: FunctionKind::Method,
+                kind,
                 params,
                 statements,
             }),

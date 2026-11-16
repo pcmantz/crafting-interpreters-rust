@@ -37,6 +37,7 @@ pub enum ErrorKind {
     },
     VariableUsedInDeclaration {},
     ThisOutsideClass {},
+    ReturnValueInInitializer {},
 }
 
 impl fmt::Display for Error {
@@ -60,6 +61,9 @@ impl fmt::Display for Error {
             }
             ErrorKind::ThisOutsideClass { .. } => {
                 write!(f, "Can't use 'this' outside of a class..")
+            }
+            ErrorKind::ReturnValueInInitializer { .. } => {
+                write!(f, "Can't return a value from an initializer.")
             }
         }
     }
@@ -147,6 +151,13 @@ impl Error {
     pub fn this_outside_class(span: Span) -> Error {
         Error {
             kind: ErrorKind::ThisOutsideClass {},
+            span,
+        }
+    }
+
+    pub fn return_value_in_initializer(span: Span) -> Error {
+        Error {
+            kind: ErrorKind::ReturnValueInInitializer {},
             span,
         }
     }

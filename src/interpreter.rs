@@ -755,4 +755,40 @@ baz;
     fn interpret_this_outside_class() {
         assert!(eval_err("this;").contains("outside of a class."));
     }
+
+    #[test]
+    fn interpret_initializer() {
+        assert_eq!(
+            eval(
+                r#"
+class Foo {
+    init() {
+        this.bar = 100;
+    }
+}
+
+var foo = Foo();
+foo.bar;
+"#
+            ),
+            Value::Num(100.0)
+        );
+    }
+
+    #[test]
+    fn interpret_return_value_inside_constructor() {
+        assert!(
+            eval_err(
+                r#"
+class Foo {
+    init() {
+        return 100;
+    }
+}
+var foo = Foo();
+"#
+            )
+            .contains("return a value from an initializer")
+        );
+    }
 }
