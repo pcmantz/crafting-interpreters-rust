@@ -239,9 +239,11 @@ impl<'a> Resolver<'a> {
 
         self.begin_scope();
 
-        for param in &def.params {
-            self.declare(param);
-            self.define(param);
+        if let Some(params) = &def.params {
+            for param in params {
+                self.declare(param);
+                self.define(param);
+            }
         }
 
         self.resolve_statements(&def.statements);

@@ -116,7 +116,7 @@ impl Parser {
 
         /* Function Parameters */
         let _ = self.consume(TokenType::LeftParen)?;
-        let params = self.consume_function_parameters()?;
+        let params = Some(self.consume_function_parameters()?);
         let _ = self.consume(TokenType::RightParen)?;
 
         /* Function body */
@@ -133,9 +133,19 @@ impl Parser {
         let name = self.consume_identifier()?;
 
         /* Function Parameters */
-        let _ = self.consume(TokenType::LeftParen)?;
-        let params = self.consume_function_parameters()?;
-        let _ = self.consume(TokenType::RightParen)?;
+        let params = if self.matches(&[TokenType::LeftParen]) {
+            let p = self.consume_function_parameters()?;
+            let _ = self.consume(TokenType::RightParen)?;
+
+            Some(p)
+        } else {
+            // NOTE: init() function must take parameters
+            if name.lexeme == "init".to_string() {
+                return Err(Error::runtime(&name, "init function must have parameters"));
+            }
+
+            None
+        };
 
         /* Function body */
         self.consume(TokenType::LeftBrace)?;
@@ -536,9 +546,8 @@ impl Parser {
 
             TokenType::Fun => self.function_expr(),
 
-            /* NOTE: This tries to pull a value, otherwise it errors. May have to
-             * explode into match later.
-             */
+            // NOTE: This tries to pull a value, otherwise it errors. May have to explode into match
+            // later.
             _ => {
                 let value = Value::from_token(token.clone()).unwrap();
                 let kind = ExprKind::literal(value);
@@ -552,7 +561,7 @@ impl Parser {
         let start = self.previous().clone();
         /* Function Parameters */
         let _ = self.consume(TokenType::LeftParen)?;
-        let params = self.consume_function_parameters()?;
+        let params = Some(self.consume_function_parameters()?);
         let _ = self.consume(TokenType::RightParen)?;
 
         /* Function body */

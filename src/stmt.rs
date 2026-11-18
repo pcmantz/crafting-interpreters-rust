@@ -66,13 +66,16 @@ impl fmt::Display for StmtKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             StmtKind::Class(s) => write!(f, "(class {})", &s.name),
-            StmtKind::Function(s) => write!(
-                f,
-                "(fun {} ({}) {})",
-                s.name.lexeme,
-                s.def.params.iter().map(|p| &p.lexeme).join(" "),
-                s.def.statements.iter().join(""),
-            ),
+            StmtKind::Function(s) => {
+                let name = &s.name.lexeme;
+                let params = match &s.def.params {
+                    Some(p) => p.iter().map(|p| &p.lexeme).join(" "),
+                    None => "".to_string(),
+                };
+                let stmts = s.def.statements.iter().join("");
+
+                write!(f, "(fun {} ({}) {})", name, params, stmts)
+            }
             StmtKind::Var(s) => match &s.initializer {
                 Some(init) => write!(f, "(var {} {})", s.name.lexeme, init),
                 None => write!(f, "(var {})", s.name.lexeme),
@@ -110,7 +113,7 @@ impl StmtKind {
         StmtKind::Var(VarStmt { name, initializer })
     }
 
-    pub fn function(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> StmtKind {
+    pub fn function(name: Token, params: Option<Vec<Token>>, statements: Vec<Stmt>) -> StmtKind {
         StmtKind::Function(FunctionStmt {
             name,
             def: Rc::new(FunctionDef {
@@ -121,7 +124,7 @@ impl StmtKind {
         })
     }
 
-    pub fn method(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> StmtKind {
+    pub fn method(name: Token, params: Option<Vec<Token>>, statements: Vec<Stmt>) -> StmtKind {
         let kind = if name.lexeme == "init".to_string() {
             FunctionKind::Initializer
         } else {
@@ -138,7 +141,11 @@ impl StmtKind {
         })
     }
 
-    pub fn class_method(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> StmtKind {
+    pub fn class_method(
+        name: Token,
+        params: Option<Vec<Token>>,
+        statements: Vec<Stmt>,
+    ) -> StmtKind {
         StmtKind::Function(FunctionStmt {
             name,
             def: Rc::new(FunctionDef {

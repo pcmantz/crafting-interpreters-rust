@@ -29,13 +29,16 @@ pub enum FunctionKind {
 #[derive(Debug, Clone)]
 pub struct FunctionDef {
     pub kind: FunctionKind,
-    pub params: Vec<Token>,
+    pub params: Option<Vec<Token>>,
     pub statements: Vec<Stmt>,
 }
 
 impl FunctionDef {
     fn arity(&self) -> usize {
-        self.params.len()
+        match &self.params {
+            Some(p) => p.len(),
+            None => 0,
+        }
     }
 
     fn call_in_env(
@@ -44,7 +47,12 @@ impl FunctionDef {
         arguments: &[Value],
         env: Environment,
     ) -> Result<Value, Error> {
-        for (i, param) in self.params.iter().enumerate() {
+        let params = match &self.params {
+            Some(p) => p,
+            None => &Vec::new(),
+        };
+
+        for (i, param) in params.iter().enumerate() {
             let name = &param.lexeme;
             let value = arguments[i].clone();
 
@@ -57,6 +65,11 @@ impl FunctionDef {
             Err(Control::Error(e)) => Err(e),
             Err(Control::Break { keyword: k }) => Err(Error::runtime(&k, "break outside loop.")),
         }
+    }
+
+    pub fn is_getter(&self) -> bool {
+        matches!(self.kind, FunctionKind::Method | FunctionKind::ClassMethod)
+            && self.params.is_none()
     }
 }
 

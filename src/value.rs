@@ -21,7 +21,7 @@ pub enum CallableKindInner {
 }
 
 #[derive(Debug, Clone)]
-pub struct CallableKind(Rc<CallableKindInner>);
+pub struct CallableKind(pub Rc<CallableKindInner>);
 
 impl From<Function> for CallableKind {
     fn from(source: Function) -> Self {
@@ -173,5 +173,17 @@ impl Value {
 
     pub fn from_class_stmt_with_closure(stmt: ClassStmt, closure: Environment) -> Value {
         Value::Class(LoxClass::from_class_stmt_with_closure(stmt, closure))
+    }
+
+    pub fn is_getter_method(&self) -> bool {
+        let Value::Fun(callable) = self else {
+            return false;
+        };
+
+        let CallableKindInner::User(fun) = callable.0.as_ref() else {
+            return false;
+        };
+
+        fun.def.is_getter()
     }
 }

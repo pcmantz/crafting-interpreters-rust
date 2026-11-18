@@ -361,7 +361,8 @@ impl Interpreter {
             Value::Fun(fun) => fun.call(self, &arguments).map_err(Control::from),
             Value::Class(klass) => klass.call(self, &arguments).map_err(Control::from),
 
-            /* TODO: The following should pull the span from the callee, not the paren. needs spans in exprs first. */
+            // TODO: The following should pull the span from the callee, not the paren. needs spans
+            // in exprs first.
             _ => Err(Control::Error(Error::value_not_callable(kind.paren.span))),
         }
     }
@@ -369,13 +370,26 @@ impl Interpreter {
     fn eval_get(&mut self, _expr: &Expr, kind: &GetExpr) -> ExecutionResult {
         let object = self.evaluate(&kind.object)?;
 
-        match object {
-            Value::Instance(i) => i.get(&kind.name).map_err(Control::from),
-            Value::Class(c) => c.get(&kind.name).map_err(Control::from),
-            _ => Err(Control::from(Error::runtime(
-                &kind.name.clone(),
-                "Only instances have fields.",
-            ))),
+        let result = match object {
+            Value::Instance(i) => i.get(&kind.name).map_err(Control::from)?,
+            Value::Class(c) => c.get(&kind.name).map_err(Control::from)?,
+            _ => {
+                return Err(Control::from(Error::runtime(
+                    &kind.name.clone(),
+                    "Only instances have fields.",
+                )));
+            }
+        };
+
+        // If this is a getter method, we have to unwrap the value to get to it to call it. If at
+        // any stage we can't pattern match, short-circuit and return the result.
+        if let Value::Fun(callable) = &result
+            && let CallableKindInner::User(fun) = callable.0.as_ref()
+            && fun.def.is_getter()
+        {
+            fun.call(self, &[]).map_err(Control::from)
+        } else {
+            Ok(result)
         }
     }
 
@@ -808,6 +822,61 @@ Math.sqrt(2);
 "#
             ),
             Value::Num(4.0)
+        );
+    }
+
+    #[test]
+    fn interpret_getter_methods() {
+        assert_eq!(
+            eval(
+                r#"
+class Circle {
+    init(radius) {
+        this.radius = radius;
+    }
+
+    area {
+        return 3.141592653 * this.radius * this.radius;
+    }
+}
+
+var circle = Circle(4);
+circle.area;
+"#
+            ),
+            Value::Num(50.265482448)
+        );
+    }
+
+    #[test]
+    fn interpret_class_getter_methods() {
+        assert_eq!(
+            eval(
+                r#"
+class Math {
+    class pi {
+        return 3.141592653;
+    }
+
+    class sq(x) {
+      return x * x;
+    }
+}
+
+class Circle {
+    init(radius) {
+        this.radius = radius;
+    }
+
+    area {
+        return Math.pi * Math.sq(this.radius);
+    }
+}
+var c = Circle(4);
+c.area;
+"#
+            ),
+            Value::Num(50.265482448)
         );
     }
 }

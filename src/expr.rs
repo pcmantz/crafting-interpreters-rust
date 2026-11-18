@@ -129,7 +129,7 @@ impl ExprKind {
         })
     }
 
-    pub fn function(params: Vec<Token>, statements: Vec<Stmt>) -> ExprKind {
+    pub fn function(params: Option<Vec<Token>>, statements: Vec<Stmt>) -> ExprKind {
         ExprKind::Function(FunctionExpr {
             def: Rc::new(FunctionDef {
                 kind: FunctionKind::Function,
