@@ -127,6 +127,8 @@ impl Parser {
     }
 
     fn method_declaration(&mut self) -> Result<Stmt, Error> {
+        let is_class_method = self.matches(&[TokenType::Class]);
+
         /* Function name */
         let name = self.consume_identifier()?;
 
@@ -139,7 +141,13 @@ impl Parser {
         self.consume(TokenType::LeftBrace)?;
         let statements = self.block()?;
 
-        Ok(self.make_stmt(&name.clone(), StmtKind::method(name, params, statements)))
+        let method = if is_class_method {
+            StmtKind::class_method(name.clone(), params, statements)
+        } else {
+            StmtKind::method(name.clone(), params, statements)
+        };
+
+        Ok(self.make_stmt(&name.clone(), method))
     }
 
     fn statement(&mut self) -> Result<Stmt, Error> {

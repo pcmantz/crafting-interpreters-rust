@@ -13,12 +13,18 @@ use crate::value::*;
 use crate::environment::*;
 use crate::interpreter::*;
 
+pub trait GettersAndSetters {
+    fn get(&self, name: &Token) -> Result<Value, Error>;
+    fn set(&self, name: &Token, value: Value) -> Result<Value, Error>;
+}
+
 pub type MethodMap = HashMap<String, Function>;
 
 #[derive(Debug, Clone)]
 pub struct LoxClassInner {
     pub name: Token,
     pub methods: MethodMap,
+    pub klass: Option<LoxClass>,
 }
 
 #[derive(Debug, Clone)]
@@ -52,26 +58,79 @@ impl Callable for LoxClass {
     }
 }
 
+impl GettersAndSetters for LoxClass {
+    fn get(&self, name: &Token) -> Result<Value, Error> {
+        let Some(klass) = self.0.klass.as_ref() else {
+            return Err(Error::runtime(
+                name,
+                format!("This class has no metaclass."),
+            ));
+        };
+
+        let Some(method) = klass.find_method(&name.lexeme) else {
+            return Err(Error::runtime(
+                name,
+                format!("Undefined property '{}'", name.lexeme),
+            ));
+        };
+
+        let bound_method = method.bind(Value::from(self.clone()));
+
+        Ok(Value::from(bound_method))
+    }
+
+    fn set(&self, name: &Token, _value: Value) -> Result<Value, Error> {
+        Err(Error::runtime(
+            name,
+            format!("Can't define class attribute ('{}').", name.lexeme),
+        ))
+    }
+}
+
 impl LoxClass {
-    pub fn from_class_stmt_with_closure(stmt: ClassStmt, closure: Environment) -> LoxClass {
-        let methods = stmt
-            .methods
-            .into_iter()
-            .filter_map(|m| match m.kind {
-                StmtKind::Function(k) => {
-                    let fun = Function::from_stmt_with_closure(k, closure.clone());
-
-                    Some((fun.name.clone().unwrap(), fun))
-                }
-
-                _ => unreachable!("non-function in class body"),
-            })
-            .collect();
-
+    pub fn new(name: Token, methods: MethodMap, klass: Option<LoxClass>) -> LoxClass {
         Self(Rc::new(LoxClassInner {
-            name: stmt.name,
+            name,
             methods,
+            klass,
         }))
+    }
+
+    pub fn from_class_stmt_with_closure(stmt: ClassStmt, closure: Environment) -> LoxClass {
+        let mut instance_methods: MethodMap = HashMap::new();
+        let mut class_methods: MethodMap = HashMap::new();
+
+        for method in stmt.methods {
+            let Stmt {
+                kind: StmtKind::Function(fs),
+                ..
+            } = method
+            else {
+                // TODO: make this an error, need to change function return type.
+                unreachable!();
+            };
+
+            let fun = Function::from_stmt_with_closure(fs, closure.clone());
+            let name = fun.name.clone().unwrap();
+
+            match fun.def.kind {
+                FunctionKind::Initializer | FunctionKind::Method => {
+                    instance_methods.insert(name, fun.clone());
+                }
+                FunctionKind::ClassMethod => {
+                    class_methods.insert(name, fun.clone());
+                }
+                _ => {
+                    // TODO: make this an error. needs to change function return type.
+                    unreachable!()
+                }
+            }
+        }
+
+        // NOTE: This is the metaclass
+        let klass = Self::new(stmt.name.clone(), class_methods, None);
+
+        Self::new(stmt.name, instance_methods, Some(klass))
     }
 
     fn find_method(&self, name: &String) -> Option<&Function> {
@@ -94,15 +153,8 @@ impl PartialEq for LoxInstance {
     }
 }
 
-impl LoxInstance {
-    pub fn for_class(klass: LoxClass) -> Self {
-        Self(Rc::new(LoxInstanceInner {
-            klass,
-            fields: RefCell::new(HashMap::new()),
-        }))
-    }
-
-    pub fn get(&self, name: &Token) -> Result<Value, Error> {
+impl GettersAndSetters for LoxInstance {
+    fn get(&self, name: &Token) -> Result<Value, Error> {
         if let Some(val) = self.0.fields.borrow().get(&name.lexeme) {
             Ok(val.clone())
         } else if let Some(method) = self.0.klass.find_method(&name.lexeme) {
@@ -117,10 +169,21 @@ impl LoxInstance {
         }
     }
 
-    pub fn set(&self, name: &Token, value: Value) {
+    fn set(&self, name: &Token, value: Value) -> Result<Value, Error> {
         self.0
             .fields
             .borrow_mut()
-            .insert(name.lexeme.clone(), value);
+            .insert(name.lexeme.clone(), value.clone());
+
+        Ok(value)
+    }
+}
+
+impl LoxInstance {
+    pub fn for_class(klass: LoxClass) -> Self {
+        Self(Rc::new(LoxInstanceInner {
+            klass,
+            fields: RefCell::new(HashMap::new()),
+        }))
     }
 }

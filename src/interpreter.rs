@@ -4,13 +4,15 @@
 
 use crate::prelude::*;
 
-use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
 use crate::function::*;
 use crate::stmt::*;
 use crate::token::*;
 use crate::value::*;
+
+use crate::environment::*;
+use crate::lox_class::*;
 
 #[derive(Debug, Clone)]
 pub enum Control {
@@ -241,12 +243,12 @@ impl Interpreter {
         self.evaluate(&kind.right)
     }
 
-    fn eval_set(&mut self, expr: &Expr, kind: &SetExpr) -> ExecutionResult {
+    fn eval_set(&mut self, _expr: &Expr, kind: &SetExpr) -> ExecutionResult {
         let object = self.evaluate(&kind.object)?;
 
         if let Value::Instance(inst) = object {
             let value = self.evaluate(&kind.value)?;
-            inst.set(&kind.name, value.clone());
+            inst.set(&kind.name, value.clone())?;
 
             Ok(value)
         } else {
@@ -367,13 +369,13 @@ impl Interpreter {
     fn eval_get(&mut self, _expr: &Expr, kind: &GetExpr) -> ExecutionResult {
         let object = self.evaluate(&kind.object)?;
 
-        if let Value::Instance(instance) = object {
-            instance.get(&kind.name).map_err(Control::from)
-        } else {
-            Err(Control::from(Error::runtime(
+        match object {
+            Value::Instance(i) => i.get(&kind.name).map_err(Control::from),
+            Value::Class(c) => c.get(&kind.name).map_err(Control::from),
+            _ => Err(Control::from(Error::runtime(
                 &kind.name.clone(),
                 "Only instances have fields.",
-            )))
+            ))),
         }
     }
 
@@ -789,6 +791,23 @@ var foo = Foo();
 "#
             )
             .contains("return a value from an initializer")
+        );
+    }
+
+    #[test]
+    fn interpret_class_methods() {
+        assert_eq!(
+            eval(
+                r#"
+class Math {
+    class sqrt(x) {
+        return x * x;
+    }
+}
+Math.sqrt(2);
+"#
+            ),
+            Value::Num(4.0)
         );
     }
 }

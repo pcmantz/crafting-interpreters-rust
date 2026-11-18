@@ -23,6 +23,7 @@ pub enum FunctionKind {
     Function,
     Initializer,
     Method,
+    ClassMethod,
 }
 
 #[derive(Debug, Clone)]

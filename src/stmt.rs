@@ -138,6 +138,17 @@ impl StmtKind {
         })
     }
 
+    pub fn class_method(name: Token, params: Vec<Token>, statements: Vec<Stmt>) -> StmtKind {
+        StmtKind::Function(FunctionStmt {
+            name,
+            def: Rc::new(FunctionDef {
+                kind: FunctionKind::ClassMethod,
+                params,
+                statements,
+            }),
+        })
+    }
+
     pub fn expression(expression: Expr) -> StmtKind {
         StmtKind::Expression(ExpressionStmt { expression })
     }
